@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <h2>Documents for Project: {{ project.name }}</h2>
+    <p class="text-muted">{{ project.description or "No description available." }}</p>
+
+    <!-- Tags Filter -->
+    {% if all_tags %}
+    <div class="mb-3">
+        <span class="me-2">Filter by Tag:</span>
+        <a href="{{ url_for('project_documents', project_id=project.id) }}"
+           class="btn btn-sm {% if not selected_tag %}btn-primary{% else %}btn-outline-primary{% endif %} mb-1">
+            All
+        </a>
+        {% for tag in all_tags %}
+            <a href="{{ url_for('project_documents', project_id=project.id, tag=tag.id) }}"
+               class="btn btn-sm {% if selected_tag == tag.id %}btn-primary{% else %}btn-outline-primary{% endif %} mb-1">
+                {{ tag.name }}
+            </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if documents %}
+        {% for doc in documents %}
+        <div class="card mb-3 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">{{ doc.title }}</h5>
+                <p class="card-text">{{ doc.description or "No description" }}</p>
+                <p class="text-muted">Author: {{ doc.author.username if doc.author else "Unknown" }}</p>
+
+                <!-- Document Tags -->
+                {% if doc.tags %}
+                <p>
+                    <strong>Tags:</strong>
+                    {% for tag in doc.tags %}
+                        <span class="badge bg-secondary">{{ tag.name }}</span>
+                    {% endfor %}
+                </p>
+                {% endif %}
+
+                {% set current_version = doc.versions | selectattr("is_current") | first %}
+                {% if current_version %}
+                    <p class="text-muted">Current Version: v{{ current_version.version_number }}</p>
+                    <a href="{{ url_for('download_file', filename=current_version.filename) }}"
+                       class="btn btn-outline-info btn-sm">Download</a>
+                {% endif %}
+
+                {% if session.get("role") in ["admin", "engineer"] %}
+                    <a href="{{ url_for('edit_document', doc_id=doc.id) }}" 
+                       class="btn btn-primary btn-sm ms-2">Edit</a>
+                    <a href="{{ url_for('new_version', doc_id=doc.id) }}" 
+                       class="btn btn-success btn-sm ms-2">Upload New Version</a>
+
+                    <form action="{{ url_for('delete_document', doc_id=doc.id) }}" method="POST" style="display:inline;">
+                        <button type="submit" class="btn btn-danger btn-sm ms-2"
+                                onclick="return confirm('Are you sure you want to delete this document?');">
+                            Delete
+                        </button>
+                    </form>
+
+                    {% if doc.versions|length > 1 %}
+                    <!-- Rollback Dropdown -->
+                    <div class="btn-group ms-2">
+                        <button type="button" class="btn btn-warning btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+                            Rollback Version
+                        </button>
+                        <ul class="dropdown-menu">
+                            {% for version in doc.versions | sort(attribute='version_number', reverse=True) %}
+                                {% if not version.is_current %}
+                                <li>
+                                    <form action="{{ url_for('rollback_version', version_id=version.id) }}" method="POST">
+                                        <button type="submit" class="dropdown-item">
+                                            v{{ version.version_number }} - uploaded {{ version.uploaded_at.strftime('%Y-%m-%d') }}
+                                        </button>
+                                    </form>
+                                </li>
+                                {% endif %}
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                {% endif %}
+
+                <!-- View & Comment Button -->
+                <a href="{{ url_for('document_detail', doc_id=doc.id) }}" class="btn btn-outline-secondary btn-sm ms-2 mt-2">
+                    View & Comment
+                </a>
+
+            </div>
+        </div>
+        {% endfor %}
+
+        <!-- Pagination Controls -->
+        <nav aria-label="Page navigation">
+          <ul class="pagination justify-content-center">
+            {% if pagination.has_prev %}
+            <li class="page-item">
+              <a class="page-link" href="{{ url_for('project_documents', project_id=project.id, page=pagination.prev_num, tag=selected_tag) }}">Previous</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">Previous</span></li>
+            {% endif %}
+
+            {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+              {% if page_num %}
+                {% if page_num == pagination.page %}
+                  <li class="page-item active"><span class="page-link">{{ page_num }}</span></li>
+                {% else %}
+                  <li class="page-item">
+                    <a class="page-link" href="{{ url_for('project_documents', project_id=project.id, page=page_num, tag=selected_tag) }}">
+                        {{ page_num }}
+                    </a>
+                  </li>
+                {% endif %}
+              {% else %}
+                <li class="page-item disabled"><span class="page-link">…</span></li>
+              {% endif %}
+            {% endfor %}
+
+            {% if pagination.has_next %}
+            <li class="page-item">
+              <a class="page-link" href="{{ url_for('project_documents', project_id=project.id, page=pagination.next_num, tag=selected_tag) }}">Next</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">Next</span></li>
+            {% endif %}
+          </ul>
+        </nav>
+
+    {% else %}
+        <p class="text-muted">No documents found for this project.</p>
+    {% endif %}
+
+    <a href="{{ url_for('projects') }}" class="btn btn-secondary mt-3">Back to Projects</a>
+
+</div>
+{% endblock %}

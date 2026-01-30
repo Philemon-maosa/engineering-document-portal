@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <h2>Dashboard</h2>
+    <p class="text-muted">Welcome back, {{ session.get('username') }}!</p>
+
+    <div class="row mt-4">
+
+        <!-- Active Projects -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    Active Projects
+                </div>
+                <div class="card-body">
+                    {% if projects %}  <!-- CHANGED: active_projects to projects -->
+                    <ul class="list-group list-group-flush">
+                        {% for project in projects %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <a href="{{ url_for('project_detail', project_id=project.id) }}">
+                                {{ project.name }}
+                            </a>
+                            <span class="badge bg-secondary">{{ project.documents|length }} docs</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                        <p class="text-muted">No active projects assigned to you.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Recently Updated Documents -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    Recently Updated Documents
+                </div>
+                <div class="card-body">
+                    {% if documents %}  <!-- CHANGED: recent_documents to documents -->
+                    <ul class="list-group list-group-flush">
+                        {% for doc in documents %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ doc.title }}</strong> 
+                                <br>
+                                <small class="text-muted">{{ doc.project.name if doc.project else "No project" }}</small>
+                            </div>
+                            {% set current_version = doc.versions[0] if doc.versions else None %}
+                            {% if current_version %}
+                            <a href="{{ url_for('download_file', filename=current_version.filename) }}"
+                               class="btn btn-sm btn-outline-info">Download</a>
+                            {% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                        <p class="text-muted">No documents updated recently.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Pending Approvals -->
+    <div class="row mt-2">
+        <div class="col-md-12 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning text-dark">
+                    Quick Actions
+                </div>
+                <div class="card-body">
+                    <div class="d-flex gap-2">
+                        {% if session.get('role') in ['admin', 'engineer'] %}
+                            <a href="{{ url_for('documents') }}" class="btn btn-primary">New Document</a>
+                        {% endif %}
+                        
+                        {% if session.get('role') == 'admin' %}
+                            <a href="{{ url_for('projects') }}" class="btn btn-secondary">New Project</a>
+                            <a href="{{ url_for('manage_users') }}" class="btn btn-warning">Manage Users</a>
+                        {% endif %}
+                        
+                        <a href="{{ url_for('profile') }}" class="btn btn-info">My Profile</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

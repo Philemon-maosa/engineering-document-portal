@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    
+    <!-- Project Header -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="card-title mb-1">{{ project.name }}</h2>
+                    <p class="card-text text-muted">{{ project.description or "No description provided." }}</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('projects') }}" class="btn btn-secondary">Back to Projects</a>
+                    {% if session.get("role") == "admin" %}
+                        <a href="{{ url_for('edit_project', project_id=project.id) }}" 
+                           class="btn btn-primary">Edit Project</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assigned Users Section -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Assigned Users</h5>
+                </div>
+                <div class="card-body">
+                    {% if project.assigned_users %}
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for user in project.assigned_users %}
+                                <div class="badge bg-primary p-2 d-flex align-items-center">
+                                    <span>{{ user.username }}</span>
+                                    <small class="ms-2 opacity-75">({{ user.role }})</small>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="alert alert-light">
+                            <p class="mb-0 text-muted">
+                                <i class="bi bi-people"></i> No users assigned to this project yet.
+                            </p>
+                        </div>
+                    {% endif %}
+                </div>
+                {% if session.get("role") == "admin" %}
+                <div class="card-footer">
+                    <a href="{{ url_for('assign_users_to_project', project_id=project.id) }}" 
+                       class="btn btn-warning">
+                        <i class="bi bi-person-plus"></i> Assign Users
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Quick Stats -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Project Stats</h5>
+                </div>
+                <div class="card-body">
+                    <div class="text-center">
+                        <h1 class="display-6">{{ project.documents|length }}</h1>
+                        <p class="text-muted">Documents</p>
+                    </div>
+                    <div class="text-center mt-3">
+                        <h1 class="display-6">{{ project.assigned_users|length }}</h1>
+                        <p class="text-muted">Assigned Users</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Documents Section -->
+    <div class="card">
+        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Documents ({{ project.documents|length }})</h5>
+            {% if session.get("role") in ["admin", "engineer"] %}
+                <a href="{{ url_for('documents') }}?project_id={{ project.id }}" 
+                   class="btn btn-light btn-sm">
+                    <i class="bi bi-plus-circle"></i> Add Document
+                </a>
+            {% endif %}
+        </div>
+        <div class="card-body">
+            {% if project.documents %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Title</th>
+                                <th>Author</th>
+                                <th>Created</th>
+                                <th>Latest Version</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for doc in project.documents %}
+                            <tr>
+                                <td>
+                                    <strong>{{ doc.title }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ doc.description[:80] }}{% if doc.description|length > 80 %}...{% endif %}</small>
+                                </td>
+                                <td>
+                                    {{ doc.author.username if doc.author else "Unknown" }}
+                                </td>
+                                <td>
+                                    {{ doc.created_at.strftime('%Y-%m-%d') }}
+                                </td>
+                                <td>
+                                    {% if doc.versions and doc.versions[0] %}
+                                        <span class="badge bg-info">v{{ doc.versions[0].version_number }}</span>
+                                        <br>
+                                        <small class="text-muted">{{ doc.versions[0].uploaded_at.strftime('%Y-%m-%d') }}</small>
+                                    {% else %}
+                                        <span class="badge bg-secondary">No file</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('document_detail', doc_id=doc.id) }}" 
+                                           class="btn btn-outline-primary">View</a>
+                                        {% if doc.versions and doc.versions[0] %}
+                                            <a href="{{ url_for('download_file', filename=doc.versions[0].filename) }}" 
+                                               class="btn btn-outline-info">Download</a>
+                                        {% endif %}
+                                        {% if session.get("role") in ["admin", "engineer"] %}
+                                            <a href="{{ url_for('upload_new_version', doc_id=doc.id) }}" 
+                                               class="btn btn-outline-success">New Version</a>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-file-earmark-text display-1 text-muted"></i>
+                    <h4 class="mt-3">No Documents Yet</h4>
+                    <p class="text-muted">This project doesn't have any documents yet.</p>
+                    {% if session.get("role") in ["admin", "engineer"] %}
+                        <a href="{{ url_for('documents') }}?project_id={{ project.id }}" 
+                           class="btn btn-success">
+                            <i class="bi bi-plus-circle"></i> Add First Document
+                        </a>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}

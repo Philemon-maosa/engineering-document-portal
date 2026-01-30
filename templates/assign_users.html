@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Assign Users to Project: {{ project.name }}</h4>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                <div class="mb-4">
+                    <h5>Select Users to Assign:</h5>
+                    <div class="row">
+                        {% for user in users %}
+                        <div class="col-md-4 mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" 
+                                       name="user_ids" value="{{ user.id }}" 
+                                       id="user_{{ user.id }}"
+                                       {% if user in project.assigned_users %}checked{% endif %}>
+                                <label class="form-check-label" for="user_{{ user.id }}">
+                                    {{ user.username }} <span class="badge bg-secondary">{{ user.role }}</span>
+                                </label>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> 
+                    Selected users will be able to access this project and its documents.
+                </div>
+                
+                <div class="mt-3">
+                    <button type="submit" class="btn btn-success">Save Assignments</button>
+                    <a href="{{ url_for('project_detail', project_id=project.id) }}" 
+                       class="btn btn-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

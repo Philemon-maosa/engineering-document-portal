@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <!-- Document Info -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="mb-0">{{ doc.title }}</h3>
+        </div>
+        <div class="card-body">
+            <p><strong>Description:</strong> {{ doc.description or "No description available." }}</p>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Author:</strong> {{ doc.author.username if doc.author else "Unknown" }}</p>
+                    <p><strong>Created:</strong> {{ doc.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                    <p><strong>Project:</strong> 
+                        {% if doc.project %}
+                            <a href="{{ url_for('project_detail', project_id=doc.project.id) }}">
+                                {{ doc.project.name }}
+                            </a>
+                        {% else %}
+                            None
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="col-md-6">
+                    {% set current_version = doc.versions[0] if doc.versions else None %}
+                    {% if current_version %}
+                        <p><strong>Current Version:</strong> v{{ current_version.version_number }}</p>
+                        <p><strong>Last Updated:</strong> {{ current_version.uploaded_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                        <a href="{{ url_for('download_file', filename=current_version.filename) }}"
+                           class="btn btn-info btn-sm">Download v{{ current_version.version_number }}</a>
+                    {% else %}
+                        <p class="text-muted">No file uploaded yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if session.get("role") in ["admin", "engineer"] %}
+            <div class="mt-3">
+                <a href="{{ url_for('edit_document', doc_id=doc.id) }}" class="btn btn-primary btn-sm">Edit Details</a>
+                <a href="#" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#uploadVersionModal">
+                    Upload New Version
+                </a>
+                {% if session.get("role") == "admin" %}
+                <form action="{{ url_for('delete_document', doc_id=doc.id) }}" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-danger btn-sm" 
+                            onclick="return confirm('Delete this document and all versions?')">
+                        Delete
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Version History -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="mb-0">Version History</h5>
+        </div>
+        <div class="card-body">
+            {% if doc.versions %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Version</th>
+                            <th>File Name</th>
+                            <th>Uploaded At</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for version in doc.versions %}
+                        <tr>
+                            <td>v{{ version.version_number }}</td>
+                            <td>{{ version.filename }}</td>
+                            <td>{{ version.uploaded_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>
+                                <span class="badge {% if version.is_current %}bg-success{% else %}bg-secondary{% endif %}">
+                                    {% if version.is_current %}Current{% else %}Archived{% endif %}
+                                </span>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('download_file', filename=version.filename) }}" 
+                                   class="btn btn-sm btn-outline-primary">Download</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+                <p class="text-muted">No versions uploaded yet.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Upload New Version Modal -->
+    <div class="modal fade" id="uploadVersionModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="POST" action="{{ url_for('upload_new_version', doc_id=doc.id) }}" enctype="multipart/form-data">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Upload New Version</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Select File (PDF or Word)</label>
+                            <input type="file" name="file" class="form-control" accept=".pdf,.doc,.docx" required>
+                            <small class="text-muted">This will become the new current version.</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-success">Upload</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="mt-4">
+        <a href="{{ url_for('documents') }}" class="btn btn-secondary">Back to All Documents</a>
+        {% if doc.project %}
+        <a href="{{ url_for('project_detail', project_id=doc.project.id) }}" class="btn btn-outline-primary ms-2">
+            View Project
+        </a>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

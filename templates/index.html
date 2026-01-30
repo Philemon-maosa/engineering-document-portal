@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title> Document Portal</title>
+    <link rel = "stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+{% extends "base.html" %}
+
+{% block content %}
+    <h1>Welcome!</h1>
+    <p>Flask templates are working!</p>
+{% endblock %}
+</body>
+</html>

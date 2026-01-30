@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <h2 class="mb-4">
+        {% if session.get("role") == "admin" %}
+            All Projects
+        {% else %}
+            My Projects
+        {% endif %}
+    </h2>
+
+    <!-- Add Project Form (Admins only) -->
+    {% if session.get("role") == "admin" %}
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Add New Project</h5>
+            <form method="POST">
+                <div class="mb-3">
+                    <label class="form-label">Project Name</label>
+                    <input type="text" name="name" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea name="description" class="form-control" rows="3"></textarea>
+                </div>
+                <button type="submit" class="btn btn-success">Add Project</button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Projects List -->
+    {% if projects %}
+        {% for project in projects %}
+        <div class="card mb-4 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <!-- FIX 1: Make project name clickable -->
+                    <h4 class="card-title mb-0">
+                        <a href="{{ url_for('project_detail', project_id=project.id) }}" 
+                           class="text-decoration-none text-dark">
+                            {{ project.name }}
+                        </a>
+                    </h4>
+
+                    {% if session.get("role") == "admin" %}
+                    <div class="btn-group">
+                        <a href="{{ url_for('edit_project', project_id=project.id) }}"
+                           class="btn btn-primary btn-sm">Edit</a>
+                        <form action="{{ url_for('delete_project', project_id=project.id) }}"
+                              method="POST" style="display:inline;">
+                            <button type="submit"
+                                    class="btn btn-danger btn-sm"
+                                    onclick="return confirm('Delete this project and all its documents?');">
+                                Delete
+                            </button>
+                        </form>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <p class="card-text text-muted">{{ project.description or "No description provided." }}</p>
+
+                <!-- FIX 2: Add View Details button (always visible) -->
+                <div class="mb-3">
+                    <a href="{{ url_for('project_detail', project_id=project.id) }}" 
+                       class="btn btn-primary btn-sm">
+                        <i class="bi bi-eye"></i> View Project Details
+                    </a>
+                </div>
+
+                <!-- Check if user can access this project -->
+                {% set user_can_access = false %}
+                {% if session.get("role") == "admin" %}
+                    {% set user_can_access = true %}
+                {% else %}
+                    <!-- Check if user is assigned to this project -->
+                    {% for assigned_user in project.assigned_users %}
+                        {% if assigned_user.id == session.get("user_id") %}
+                            {% set user_can_access = true %}
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+
+                {% if user_can_access %}
+                    <!-- Quick Document Upload (Engineers & Admins only) -->
+                    {% if session.get("role") in ["admin", "engineer"] %}
+                    <div class="card border-primary mb-3">
+                        <div class="card-header bg-primary text-white py-2">
+                            <h6 class="mb-0">Quick Upload Document</h6>
+                        </div>
+                        <div class="card-body p-3">
+                            <form method="POST" action="{{ url_for('documents') }}" enctype="multipart/form-data" class="row g-2 align-items-end">
+                                <input type="hidden" name="project_id" value="{{ project.id }}">
+                                
+                                <div class="col-md-4">
+                                    <label class="form-label small mb-1">Title</label>
+                                    <input type="text" name="title" class="form-control form-control-sm" required>
+                                </div>
+                                
+                                <div class="col-md-4">
+                                    <label class="form-label small mb-1">Description</label>
+                                    <input type="text" name="description" class="form-control form-control-sm">
+                                </div>
+                                
+                                <div class="col-md-3">
+                                    <label class="form-label small mb-1">File (Optional)</label>
+                                    <input type="file" name="file" class="form-control form-control-sm" accept=".pdf,.doc,.docx">
+                                </div>
+                                
+                                <div class="col-md-1">
+                                    <button type="submit" class="btn btn-success btn-sm w-100">Add</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Project Documents Preview -->
+                    <div class="mt-3">
+                        <h6>Recent Documents ({{ project.documents|length }} total)</h6>
+                        
+                        {% if project.documents %}
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Title</th>
+                                        <th>Latest Version</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for doc in project.documents[:3] %}  <!-- Show only 3 recent docs -->
+                                    <tr>
+                                        <td>
+                                            <a href="{{ url_for('document_detail', doc_id=doc.id) }}">
+                                                <strong>{{ doc.title }}</strong>
+                                            </a>
+                                            <br>
+                                            <small class="text-muted">{{ doc.description[:60] }}{% if doc.description|length > 60 %}...{% endif %}</small>
+                                        </td>
+                                        <td>
+                                            {% if doc.versions and doc.versions[0] %}
+                                            <span class="badge bg-info">v{{ doc.versions[0].version_number }}</span>
+                                            <small class="text-muted d-block">{{ doc.versions[0].uploaded_at.strftime('%Y-%m-%d') }}</small>
+                                            {% else %}
+                                            <span class="badge bg-secondary">No file</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="{{ url_for('document_detail', doc_id=doc.id) }}" 
+                                                   class="btn btn-outline-primary">View</a>
+                                                {% if doc.versions and doc.versions[0] %}
+                                                <a href="{{ url_for('download_file', filename=doc.versions[0].filename) }}" 
+                                                   class="btn btn-outline-info">Download</a>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                            {% if project.documents|length > 3 %}
+                            <div class="text-center mt-2">
+                                <a href="{{ url_for('project_detail', project_id=project.id) }}" 
+                                   class="btn btn-sm btn-outline-secondary">
+                                    View all {{ project.documents|length }} documents
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% else %}
+                        <div class="alert alert-light border">
+                            <p class="mb-0 text-muted">
+                                <i class="bi bi-info-circle"></i> No documents in this project yet.
+                                {% if session.get("role") in ["admin", "engineer"] %}
+                                Use the upload form above to add the first document.
+                                {% endif %}
+                            </p>
+                        </div>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <div class="alert alert-warning">
+                        <p class="mb-0">
+                            <i class="bi bi-exclamation-triangle"></i> You don't have access to this project.
+                            Contact an administrator to be added.
+                        </p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+
+    {% else %}
+        <div class="alert alert-info">
+            <h5 class="alert-heading">
+                {% if session.get("role") == "admin" %}
+                No Projects Found
+                {% else %}
+                No Projects Assigned
+                {% endif %}
+            </h5>
+            <p class="mb-0">
+                {% if session.get("role") == "admin" %}
+                Create your first project using the form above.
+                {% else %}
+                You haven't been assigned to any projects yet. Contact an administrator.
+                {% endif %}
+            </p>
+        </div>
+    {% endif %}
+
+</div>
+{% endblock %}

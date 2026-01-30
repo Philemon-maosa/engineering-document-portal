@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <h2>Edit Document</h2>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ 'success' if category=='success' else 'danger' }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('edit_document', doc_id=doc.id) }}" enctype="multipart/form-data">
+
+        <!-- Title -->
+        <div class="mb-3">
+            <label class="form-label">Title</label>
+            <input type="text" name="title" value="{{ doc.title }}" class="form-control" required>
+        </div>
+
+        <!-- Description -->
+        <div class="mb-3">
+            <label class="form-label">Description</label>
+            <textarea name="description" class="form-control" required>{{ doc.description }}</textarea>
+        </div>
+
+        <!-- Project Assignment -->
+        <div class="mb-3">
+            <label class="form-label">Assign to Project (optional)</label>
+            <select name="project_id" class="form-select">
+                <option value="">-- No Project --</option>
+                {% for project in projects %}
+                    <option value="{{ project.id }}" {% if doc.project_id == project.id %}selected{% endif %}>
+                        {{ project.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Tags Assignment -->
+        <div class="mb-3">
+            <label class="form-label">Tags</label>
+            <select name="tags" class="form-select" multiple>
+                {% for tag in all_tags %}
+                    <option value="{{ tag.id }}" {% if tag in doc.tags %}selected{% endif %}>
+                        {{ tag.name }}
+                    </option>
+                {% endfor %}
+            </select>
+            <small class="form-text text-muted">
+                Hold Ctrl (Cmd on Mac) to select multiple existing tags, or add new tags separated by commas in the input below.
+            </small>
+            <input type="text" name="new_tags" class="form-control mt-1" placeholder="Add new tags, comma-separated">
+        </div>
+
+        <!-- Current Versions -->
+        <div class="mb-3">
+            <label class="form-label">Current Versions</label>
+            <ul class="list-group mb-2">
+                {% for version in doc.versions | sort(attribute='version_number', reverse=True) %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        v{{ version.version_number }} - uploaded {{ version.uploaded_at.strftime('%Y-%m-%d %H:%M') }}
+                        {% if version.is_current %}
+                            <span class="badge bg-success ms-2">Current</span>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <a href="{{ url_for('download_file', filename=version.filename) }}" class="btn btn-sm btn-outline-info me-1">Download</a>
+                        {% if session.get("role") in ["admin", "engineer"] and not version.is_current %}
+                        <form action="{{ url_for('rollback_version', version_id=version.id) }}" method="POST" class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-warning" onclick="return confirm('Rollback to this version?');">Rollback</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <!-- Upload New Version -->
+        <div class="mb-3">
+            <label class="form-label">Upload New Version (PDF or Word)</label>
+            <input type="file" name="file" class="form-control" accept=".pdf,.doc,.docx">
+        </div>
+
+        <!-- Submit Buttons -->
+        <button type="submit" class="btn btn-success">Update Document</button>
+        {% if doc.project %}
+        <a href="{{ url_for('project_detail', project_id=doc.project.id) }}" class="btn btn-secondary ms-2">Back to Project Documents</a>
+        {% else %}
+        <a href="{{ url_for('documents') }}" class="btn btn-secondary ms-2">Back to Documents</a>
+        {% endif %}
+
+    </form>
+
+</div>
+{% endblock %}
