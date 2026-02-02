@@ -3,7 +3,7 @@ services:
     name: docmanager
     env: python
     plan: free
-    rootDir: doc_portal
+    
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
     envVars:
