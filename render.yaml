@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: engineering doument portal
+    name: engineeringdoc
     env: python
     plan: free
     
