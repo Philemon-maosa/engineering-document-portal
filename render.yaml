@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: docmanager
+    name: engineering doument portal
     env: python
     plan: free
     
