@@ -13,30 +13,66 @@ import time
 import hashlib
 from pathlib import Path
 
-# ------------------- App Setup -------------------
+# ============================================
+# CREATE FLASK APP FIRST
+# ============================================
 app = Flask(__name__)
-app.secret_key = "supersecretkey"
 
-# Security settings
+# ============================================
+# CONFIGURATION FOR DEPLOYMENT
+# ============================================
+
+# 1. SECRET KEY (Render will provide in production)
+app.secret_key = os.environ.get('SECRET_KEY', 'supersecretkey')
+
+# 2. DATABASE CONFIGURATION (CRITICAL FOR RENDER)
+database_url = os.environ.get('DATABASE_URL')
+
+if database_url:
+    # We're on Render - fix the PostgreSQL URL
+    if database_url.startswith("postgres://"):
+        database_url = database_url.replace("postgres://", "postgresql://", 1)
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+    print("✅ Using PostgreSQL database (Production)")
+else:
+    # We're running locally
+    app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///documents.db"
+    print("✅ Using SQLite database (Development)")
+
+# 3. OTHER DATABASE SETTINGS
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# 4. FILE UPLOAD SETTINGS
+app.config['UPLOAD_FOLDER'] = 'static/uploads'
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB
+
+# 5. SECURITY SETTINGS
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=2)  # Session timeout: 2 hours
 app.config['MAX_FAILED_LOGIN_ATTEMPTS'] = 5  # Lock after 5 failed attempts
 app.config['ACCOUNT_LOCKOUT_MINUTES'] = 15   # Lock for 15 minutes
 app.config['PASSWORD_RESET_TOKEN_EXPIRY'] = 3600  # 1 hour in seconds
 
-UPLOAD_FOLDER = "static/uploads"
+# 6. ALLOWED FILE EXTENSIONS
 ALLOWED_EXTENSIONS = {
     "pdf", "doc", "docx", "txt", "md", 
     "xls", "xlsx", "ppt", "pptx", "jpg", 
     "jpeg", "png", "zip", "csv", "json", "xml"
 }
-app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///documents.db"
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+# ============================================
+# INITIALIZE DATABASE
+# ============================================
 db = SQLAlchemy(app)
 
-# ------------------- Constants -------------------
+# ============================================
+# CREATE UPLOAD FOLDER
+# ============================================
+UPLOAD_FOLDER = "static/uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# ============================================
+# CONSTANTS
+# ============================================
 ROLES = ["admin", "engineer", "view-only"]
 DOCUMENT_CATEGORIES = [
     "General", "Technical", "Design", "Requirements", 
@@ -45,7 +81,7 @@ DOCUMENT_CATEGORIES = [
 ]
 DOCUMENT_STATUSES = ["draft", "in_review", "approved", "archived"]
 
-# =========== ADD KNOWLEDGE BASE CONSTANTS ===========
+# =========== KNOWLEDGE BASE CONSTANTS ===========
 KNOWLEDGE_BASE_TYPES = [
     "coding_guidelines",
     "system_architecture", 
@@ -1472,8 +1508,14 @@ def create_default_admin():
 def setup_database():
     with app.app_context():
         db.create_all()
+        
+        # Create upload folder if it doesn't exist
+        upload_dir = Path(app.config['UPLOAD_FOLDER'])
+        upload_dir.mkdir(exist_ok=True)
+        
         create_default_admin()
-        print("Database initialized successfully!")
+        print("✅ Database initialized successfully!")
+        print(f"✅ Upload folder: {upload_dir.absolute()}")
 
 # ------------------- Main Entry Point -------------------
 if __name__ == "__main__":
