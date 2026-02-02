@@ -1,0 +1,517 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fas fa-tags me-2"></i>Tag Management</h2>
+            <p class="text-muted mb-0">Manage and organize document tags</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('documents') }}" class="btn btn-outline-primary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Documents
+            </a>
+            {% if session.get('role') == 'admin' %}
+            <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#bulkDeleteModal">
+                <i class="fas fa-trash me-2"></i>Clean Up Tags
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ 'success' if category=='success' else 'danger' if category == 'danger' else 'warning' }} alert-dismissible fade show" role="alert">
+            <i class="fas fa-{{ 'check-circle' if category == 'success' else 'exclamation-triangle' if category == 'danger' else 'info-circle' }} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <!-- Statistics Bar -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Total Tags</h6>
+                            <h4 class="mb-0">{{ tag_stats|length }}</h4>
+                        </div>
+                        <i class="fas fa-tags fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Active Tags</h6>
+                            <h4 class="mb-0">{{ tag_stats|selectattr('document_count', 'gt', 0)|list|length }}</h4>
+                        </div>
+                        <i class="fas fa-check-circle fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Unused Tags</h6>
+                            <h4 class="mb-0">{{ tag_stats|selectattr('document_count', 'equalto', 0)|list|length }}</h4>
+                        </div>
+                        <i class="fas fa-exclamation-circle fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Tagged Documents</h6>
+                            <h4 class="mb-0">
+                                {% set total_tagged = [] %}
+                                {% for stat in tag_stats %}
+                                    {% if stat.document_count > 0 %}
+                                        {% set _ = total_tagged.append(stat.document_count) %}
+                                    {% endif %}
+                                {% endfor %}
+                                {{ total_tagged|sum }}
+                            </h4>
+                        </div>
+                        <i class="fas fa-file-alt fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filter -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="fas fa-search"></i>
+                        </span>
+                        <input type="text" id="tagSearch" class="form-control" placeholder="Search tags...">
+                        <button class="btn btn-outline-secondary" type="button" id="clearSearch">
+                            Clear
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="d-flex gap-2">
+                        <div class="dropdown w-100">
+                            <button class="btn btn-outline-secondary dropdown-toggle w-100" type="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-filter me-2"></i>
+                                <span id="currentSort">Most Used</span>
+                            </button>
+                            <ul class="dropdown-menu w-100">
+                                <li><a class="dropdown-item sort-option" href="#" data-sort="most-used">Most Used First</a></li>
+                                <li><a class="dropdown-item sort-option" href="#" data-sort="least-used">Least Used First</a></li>
+                                <li><a class="dropdown-item sort-option" href="#" data-sort="name-asc">Name A-Z</a></li>
+                                <li><a class="dropdown-item sort-option" href="#" data-sort="name-desc">Name Z-A</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item sort-option" href="#" data-sort="all">Show All</a></li>
+                                <li><a class="dropdown-item sort-option" href="#" data-sort="unused">Unused Only</a></li>
+                                <li><a class="dropdown-item sort-option" href="#" data-sort="used">Used Only</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tags Grid/List -->
+    {% if tag_stats %}
+    <div class="row" id="tagsGrid">
+        {% for stat in tag_stats %}
+        <div class="col-md-4 mb-4 tag-card" 
+             data-tag-name="{{ stat.tag.name|lower }}"
+             data-usage="{{ stat.document_count }}"
+             data-created="{{ stat.tag.id }}">
+            <div class="card shadow-sm h-100 {% if stat.document_count == 0 %}border-warning{% endif %}">
+                <div class="card-header d-flex justify-content-between align-items-center {% if stat.document_count == 0 %}bg-warning{% else %}bg-light{% endif %}">
+                    <div class="d-flex align-items-center">
+                        <span class="badge {% if stat.document_count == 0 %}bg-warning text-dark{% else %}bg-primary{% endif %} me-2">
+                            <i class="fas fa-hashtag"></i>
+                        </span>
+                        <h5 class="mb-0">{{ stat.tag.name }}</h5>
+                    </div>
+                    <div>
+                        {% if stat.document_count == 0 and session.get('role') == 'admin' %}
+                        <form action="{{ url_for('delete_tag', tag_id=stat.tag.id) if 'delete_tag' in url_for.__globals__ else '#' }}" 
+                              method="POST" class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-outline-danger"
+                                    onclick="return confirm('Delete tag \"{{ stat.tag.name }}\"?')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-muted">
+                                <i class="fas fa-file-alt me-1"></i>
+                                Documents tagged:
+                            </span>
+                            <span class="badge {% if stat.document_count == 0 %}bg-warning text-dark{% else %}bg-success{% endif %}">
+                                {{ stat.document_count }} document{{ 's' if stat.document_count != 1 }}
+                            </span>
+                        </div>
+                        
+                        <div class="progress mb-2" style="height: 8px;">
+                            {% set max_docs = tag_stats|map(attribute='document_count')|max %}
+                            {% set percentage = (stat.document_count / max_docs * 100) if max_docs > 0 else 0 %}
+                            <div class="progress-bar {% if stat.document_count == 0 %}bg-warning{% else %}bg-primary{% endif %}" 
+                                 role="progressbar" 
+                                 style="width: {{ percentage }}%"
+                                 aria-valuenow="{{ stat.document_count }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="{{ max_docs }}">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if stat.document_count > 0 %}
+                    <div class="mb-3">
+                        <h6><i class="fas fa-list me-2"></i>Recent Documents</h6>
+                        <div class="list-group list-group-flush">
+                            {% for doc in stat.tag.documents[:3] %}
+                            <a href="{{ url_for('document_detail', doc_id=doc.id) }}" 
+                               class="list-group-item list-group-item-action border-0 py-2">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="text-truncate">
+                                        <i class="fas fa-file text-primary me-2"></i>
+                                        {{ doc.title|truncate(30) }}
+                                    </div>
+                                    <small class="text-muted">{{ doc.created_at.strftime('%Y-%m-%d') }}</small>
+                                </div>
+                            </a>
+                            {% endfor %}
+                            {% if stat.document_count > 3 %}
+                            <div class="text-center mt-2">
+                                <a href="{{ url_for('documents_by_tag', tag_id=stat.tag.id) if 'documents_by_tag' in url_for.__globals__ else '#' }}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    View all {{ stat.document_count }} documents
+                                    <i class="fas fa-arrow-right ms-1"></i>
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-exclamation-triangle fa-2x text-warning mb-3"></i>
+                        <p class="text-muted">This tag is not used in any documents.</p>
+                        {% if session.get('role') == 'admin' %}
+                        <p class="small text-muted">Only admins can delete unused tags.</p>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Tag Usage Stats -->
+                    <div class="mt-3 pt-3 border-top">
+                        <div class="row small text-muted">
+                            <div class="col-6">
+                                <i class="fas fa-id-badge me-1"></i>
+                                ID: {{ stat.tag.id }}
+                            </div>
+                            <div class="col-6 text-end">
+                                {% if stat.document_count > 0 %}
+                                <span class="text-success">
+                                    <i class="fas fa-check-circle me-1"></i>
+                                    Active
+                                </span>
+                                {% else %}
+                                <span class="text-warning">
+                                    <i class="fas fa-exclamation-circle me-1"></i>
+                                    Unused
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-footer bg-transparent d-flex justify-content-between">
+                    <div>
+                        {% if stat.document_count > 0 %}
+                        <a href="{{ url_for('documents_by_tag', tag_id=stat.tag.id) if 'documents_by_tag' in url_for.__globals__ else '#' }}" 
+                           class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-eye me-1"></i>View Documents
+                        </a>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-outline-secondary" 
+                                onclick="copyTagName('{{ stat.tag.name }}')"
+                                title="Copy tag name">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+        <i class="fas fa-tags fa-3x text-muted mb-3"></i>
+        <h4>No tags found</h4>
+        <p class="text-muted mb-4">Tags will appear here when documents are tagged.</p>
+        <a href="{{ url_for('documents') }}" class="btn btn-primary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Documents
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Bulk Delete Modal (Admin Only) -->
+{% if session.get('role') == 'admin' %}
+<div class="modal fade" id="bulkDeleteModal" tabindex="-1" aria-labelledby="bulkDeleteModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="bulkDeleteModalLabel">
+            <i class="fas fa-trash me-2"></i>Clean Up Unused Tags
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-warning">
+          <i class="fas fa-exclamation-triangle me-2"></i>
+          <strong>Warning:</strong> This action will permanently delete all unused tags.
+        </div>
+        
+        <p class="mb-3">The following tags are not used in any documents and will be deleted:</p>
+        
+        <div class="mb-3">
+          {% set unused_tags = tag_stats|selectattr('document_count', 'equalto', 0)|list %}
+          {% if unused_tags %}
+          <div class="border rounded p-3" style="max-height: 200px; overflow-y: auto;">
+            {% for stat in unused_tags %}
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span>
+                <i class="fas fa-hashtag text-warning me-2"></i>
+                {{ stat.tag.name }}
+              </span>
+              <span class="badge bg-warning text-dark">Unused</span>
+            </div>
+            {% endfor %}
+          </div>
+          <div class="mt-2 text-muted small">
+            Total unused tags: {{ unused_tags|length }}
+          </div>
+          {% else %}
+          <div class="text-center py-3">
+            <i class="fas fa-check-circle fa-2x text-success mb-3"></i>
+            <p>No unused tags found. Your tags are all clean!</p>
+          </div>
+          {% endif %}
+        </div>
+        
+        <p class="small text-muted">
+          <i class="fas fa-info-circle me-1"></i>
+          Only tags with 0 associated documents will be deleted. Tags in use are protected.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        {% if unused_tags %}
+        <form action="#" method="POST" id="bulkDeleteForm">
+          <button type="submit" class="btn btn-danger">
+            <i class="fas fa-trash me-2"></i>Delete {{ unused_tags|length }} Unused Tags
+          </button>
+        </form>
+        {% else %}
+        <button type="button" class="btn btn-success" data-bs-dismiss="modal">
+          <i class="fas fa-check me-2"></i>All Clean
+        </button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<style>
+.card {
+    border: 1px solid rgba(0,0,0,0.125);
+    transition: transform 0.2s;
+}
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+.tag-card {
+    animation: fadeIn 0.3s ease-in;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.progress {
+    border-radius: 10px;
+    overflow: hidden;
+}
+.progress-bar {
+    border-radius: 10px;
+}
+.list-group-item:hover {
+    background-color: #f8f9fa;
+}
+.badge {
+    font-size: 0.75em;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Search functionality
+    const tagSearch = document.getElementById('tagSearch');
+    const clearSearch = document.getElementById('clearSearch');
+    
+    if (tagSearch) {
+        tagSearch.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const tagCards = document.querySelectorAll('.tag-card');
+            let visibleCount = 0;
+            
+            tagCards.forEach(card => {
+                const tagName = card.getAttribute('data-tag-name');
+                if (tagName.includes(searchTerm)) {
+                    card.style.display = 'block';
+                    visibleCount++;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+            
+            // Update counter if we have one
+            const counter = document.getElementById('tagCount');
+            if (counter) {
+                counter.textContent = `${visibleCount} tag${visibleCount !== 1 ? 's' : ''}`;
+            }
+        });
+    }
+    
+    if (clearSearch) {
+        clearSearch.addEventListener('click', function() {
+            if (tagSearch) tagSearch.value = '';
+            const tagCards = document.querySelectorAll('.tag-card');
+            tagCards.forEach(card => {
+                card.style.display = 'block';
+            });
+        });
+    }
+    
+    // Sort functionality
+    const sortOptions = document.querySelectorAll('.sort-option');
+    const currentSort = document.getElementById('currentSort');
+    
+    sortOptions.forEach(option => {
+        option.addEventListener('click', function(e) {
+            e.preventDefault();
+            const sortType = this.getAttribute('data-sort');
+            currentSort.textContent = this.textContent;
+            sortTags(sortType);
+        });
+    });
+    
+    function sortTags(sortType) {
+        const container = document.getElementById('tagsGrid');
+        const tagCards = Array.from(container.querySelectorAll('.tag-card'));
+        
+        tagCards.sort((a, b) => {
+            const aName = a.getAttribute('data-tag-name');
+            const bName = b.getAttribute('data-tag-name');
+            const aUsage = parseInt(a.getAttribute('data-usage'));
+            const bUsage = parseInt(b.getAttribute('data-usage'));
+            
+            switch(sortType) {
+                case 'most-used':
+                    return bUsage - aUsage;
+                case 'least-used':
+                    return aUsage - bUsage;
+                case 'name-asc':
+                    return aName.localeCompare(bName);
+                case 'name-desc':
+                    return bName.localeCompare(aName);
+                case 'unused':
+                    return aUsage === 0 ? -1 : (bUsage === 0 ? 1 : 0);
+                case 'used':
+                    return bUsage > 0 ? -1 : (aUsage > 0 ? 1 : 0);
+                default:
+                    return 0;
+            }
+        });
+        
+        // Reappend sorted cards
+        tagCards.forEach(card => {
+            container.appendChild(card);
+            
+            // Hide/show based on filter
+            if (sortType === 'unused') {
+                card.style.display = card.getAttribute('data-usage') === '0' ? 'block' : 'none';
+            } else if (sortType === 'used') {
+                card.style.display = card.getAttribute('data-usage') !== '0' ? 'block' : 'none';
+            } else {
+                card.style.display = 'block';
+            }
+        });
+    }
+    
+    // Bulk delete form handling
+    const bulkDeleteForm = document.getElementById('bulkDeleteForm');
+    if (bulkDeleteForm) {
+        bulkDeleteForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (confirm('Are you sure you want to delete all unused tags? This action cannot be undone.')) {
+                // Here you would typically submit to a bulk delete endpoint
+                // For now, we'll just submit the form as is
+                this.submit();
+            }
+        });
+    }
+});
+
+// Copy tag name to clipboard
+function copyTagName(tagName) {
+    navigator.clipboard.writeText(tagName).then(() => {
+        // Show success feedback
+        const originalButton = event.target.closest('button');
+        const originalHTML = originalButton.innerHTML;
+        originalButton.innerHTML = '<i class="fas fa-check"></i>';
+        originalButton.classList.remove('btn-outline-secondary');
+        originalButton.classList.add('btn-success');
+        
+        setTimeout(() => {
+            originalButton.innerHTML = originalHTML;
+            originalButton.classList.remove('btn-success');
+            originalButton.classList.add('btn-outline-secondary');
+        }, 1500);
+    }).catch(err => {
+        console.error('Failed to copy: ', err);
+        alert('Failed to copy tag name to clipboard');
+    });
+}
+</script>
+{% endblock %}

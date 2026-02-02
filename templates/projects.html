@@ -11,8 +11,27 @@
         {% endif %}
     </h2>
 
-    <!-- Add Project Form (Admins only) -->
+    <!-- Project Management (Admins only) -->
     {% if session.get("role") == "admin" %}
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="btn-group" role="group">
+                <a href="{{ url_for('projects') }}" 
+                   class="btn btn-outline-primary active">
+                    <i class="bi bi-folder"></i> All Projects
+                </a>
+                <!-- Archive feature will be added when database is updated -->
+            </div>
+        </div>
+        <div class="col-md-4 text-end">
+            <!-- Quick Stats -->
+            <small class="text-muted">
+                <span class="badge bg-primary">{{ projects|length }} total</span>
+            </small>
+        </div>
+    </div>
+    
+    <!-- Add Project Form (Admins only) -->
     <div class="card mb-4">
         <div class="card-body">
             <h5 class="card-title">Add New Project</h5>
@@ -25,9 +44,19 @@
                     <label class="form-label">Description</label>
                     <textarea name="description" class="form-control" rows="3"></textarea>
                 </div>
-                <button type="submit" class="btn btn-success">Add Project</button>
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-plus-circle"></i> Add Project
+                </button>
             </form>
         </div>
+    </div>
+    
+    {% else %}
+    <!-- For non-admin users -->
+    <div class="alert alert-light mb-4">
+        <p class="mb-0">
+            <i class="bi bi-info-circle"></i> You can view and work on projects you've been assigned to.
+        </p>
     </div>
     {% endif %}
 
@@ -36,39 +65,66 @@
         {% for project in projects %}
         <div class="card mb-4 shadow-sm">
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <!-- FIX 1: Make project name clickable -->
-                    <h4 class="card-title mb-0">
-                        <a href="{{ url_for('project_detail', project_id=project.id) }}" 
-                           class="text-decoration-none text-dark">
-                            {{ project.name }}
-                        </a>
-                    </h4>
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <!-- Archive Badge - Temporarily removed -->
+                        
+                        <!-- Project name -->
+                        <h4 class="card-title mb-0">
+                            <a href="{{ url_for('project_detail', project_id=project.id) }}" 
+                               class="text-decoration-none text-dark">
+                                {{ project.name }}
+                            </a>
+                        </h4>
+                        
+                        <!-- Project Metadata - Updated without created_at/updated_at -->
+                        <div class="small text-muted mt-1">
+                            <i class="bi bi-folder"></i> Project ID: {{ project.id }}
+                        </div>
+                    </div>
 
                     {% if session.get("role") == "admin" %}
                     <div class="btn-group">
                         <a href="{{ url_for('edit_project', project_id=project.id) }}"
-                           class="btn btn-primary btn-sm">Edit</a>
+                           class="btn btn-primary btn-sm">
+                           <i class="bi bi-pencil"></i> Edit
+                        </a>
+                        
+                        <!-- Archive Button - Temporarily disabled -->
+                        <button class="btn btn-warning btn-sm" disabled title="Archive feature coming soon">
+                            <i class="bi bi-archive"></i> Archive
+                        </button>
+                        
+                        <!-- Delete Button -->
                         <form action="{{ url_for('delete_project', project_id=project.id) }}"
                               method="POST" style="display:inline;">
                             <button type="submit"
                                     class="btn btn-danger btn-sm"
-                                    onclick="return confirm('Delete this project and all its documents?');">
-                                Delete
+                                    onclick="return confirm('Delete this project and all its documents? This action cannot be undone.');">
+                                <i class="bi bi-trash"></i> Delete
                             </button>
                         </form>
                     </div>
                     {% endif %}
                 </div>
 
-                <p class="card-text text-muted">{{ project.description or "No description provided." }}</p>
+                <p class="card-text">
+                    {{ project.description or "No description provided." }}
+                </p>
 
-                <!-- FIX 2: Add View Details button (always visible) -->
+                <!-- View Details button -->
                 <div class="mb-3">
                     <a href="{{ url_for('project_detail', project_id=project.id) }}" 
                        class="btn btn-primary btn-sm">
                         <i class="bi bi-eye"></i> View Project Details
                     </a>
+                    
+                    {% if session.get("role") == "admin" %}
+                    <a href="{{ url_for('assign_users_to_project', project_id=project.id) }}" 
+                       class="btn btn-outline-secondary btn-sm ms-1">
+                        <i class="bi bi-people"></i> Manage Users
+                    </a>
+                    {% endif %}
                 </div>
 
                 <!-- Check if user can access this project -->
@@ -107,11 +163,13 @@
                                 
                                 <div class="col-md-3">
                                     <label class="form-label small mb-1">File (Optional)</label>
-                                    <input type="file" name="file" class="form-control form-control-sm" accept=".pdf,.doc,.docx">
+                                    <input type="file" name="file" class="form-control form-control-sm" accept=".pdf,.doc,.docx,.txt,.md,.xls,.xlsx">
                                 </div>
                                 
                                 <div class="col-md-1">
-                                    <button type="submit" class="btn btn-success btn-sm w-100">Add</button>
+                                    <button type="submit" class="btn btn-success btn-sm w-100">
+                                        <i class="bi bi-upload"></i>
+                                    </button>
                                 </div>
                             </form>
                         </div>
@@ -200,16 +258,16 @@
         <div class="alert alert-info">
             <h5 class="alert-heading">
                 {% if session.get("role") == "admin" %}
-                No Projects Found
+                    No Projects Found
                 {% else %}
-                No Projects Assigned
+                    No Projects Assigned
                 {% endif %}
             </h5>
             <p class="mb-0">
                 {% if session.get("role") == "admin" %}
-                Create your first project using the form above.
+                    Create your first project using the form above.
                 {% else %}
-                You haven't been assigned to any projects yet. Contact an administrator.
+                    You haven't been assigned to any projects yet. Contact an administrator.
                 {% endif %}
             </p>
         </div>

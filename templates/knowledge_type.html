@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('home') }}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('knowledge_base') }}">Knowledge Base</a></li>
+            <li class="breadcrumb-item active">{{ formatted_type }}</li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>
+                {% if knowledge_type == 'coding_guidelines' %}
+                <i class="fas fa-code me-2 text-primary"></i>
+                {% elif knowledge_type == 'system_architecture' %}
+                <i class="fas fa-sitemap me-2 text-success"></i>
+                {% elif knowledge_type == 'deployment_notes' %}
+                <i class="fas fa-rocket me-2 text-info"></i>
+                {% elif knowledge_type == 'best_practices' %}
+                <i class="fas fa-star me-2 text-warning"></i>
+                {% elif knowledge_type == 'security_standards' %}
+                <i class="fas fa-shield-alt me-2 text-danger"></i>
+                {% elif knowledge_type == 'code_review_guide' %}
+                <i class="fas fa-check-circle me-2 text-success"></i>
+                {% elif knowledge_type == 'testing_standards' %}
+                <i class="fas fa-vial me-2 text-info"></i>
+                {% elif knowledge_type == 'documentation_standards' %}
+                <i class="fas fa-file-alt me-2 text-primary"></i>
+                {% else %}
+                <i class="fas fa-file me-2 text-secondary"></i>
+                {% endif %}
+                {{ formatted_type }}
+            </h2>
+            <p class="text-muted mb-0">{{ docs|length }} guideline{{ 's' if docs|length != 1 }} in this category</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('knowledge_base') }}" class="btn btn-outline-primary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Knowledge Base
+            </a>
+            <a href="{{ url_for('documents') }}" class="btn btn-success">
+                <i class="fas fa-plus me-2"></i>Add New
+            </a>
+        </div>
+    </div>
+
+    <!-- Description by Type -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            {% if knowledge_type == 'coding_guidelines' %}
+            <h5><i class="fas fa-info-circle me-2 text-primary"></i>About Coding Guidelines</h5>
+            <p class="mb-0">Standardized coding conventions, style guides, and best practices for writing clean, maintainable, and efficient code across all projects and teams.</p>
+            {% elif knowledge_type == 'system_architecture' %}
+            <h5><i class="fas fa-info-circle me-2 text-success"></i>About System Architecture</h5>
+            <p class="mb-0">Architectural patterns, design decisions, system diagrams, and technical specifications for building scalable and robust software systems.</p>
+            {% elif knowledge_type == 'deployment_notes' %}
+            <h5><i class="fas fa-info-circle me-2 text-info"></i>About Deployment Notes</h5>
+            <p class="mb-0">Deployment procedures, environment configurations, release checklists, and operational guidelines for smooth software deployments.</p>
+            {% elif knowledge_type == 'best_practices' %}
+            <h5><i class="fas fa-info-circle me-2 text-warning"></i>About Best Practices</h5>
+            <p class="mb-0">Proven methodologies, recommended approaches, and industry-standard practices for various development and operational scenarios.</p>
+            {% elif knowledge_type == 'security_standards' %}
+            <h5><i class="fas fa-info-circle me-2 text-danger"></i>About Security Standards</h5>
+            <p class="mb-0">Security protocols, vulnerability prevention, encryption standards, and compliance requirements for secure software development.</p>
+            {% elif knowledge_type == 'code_review_guide' %}
+            <h5><i class="fas fa-info-circle me-2 text-success"></i>About Code Review Guide</h5>
+            <p class="mb-0">Code review processes, quality standards, checklists, and feedback guidelines for maintaining code quality through peer reviews.</p>
+            {% elif knowledge_type == 'testing_standards' %}
+            <h5><i class="fas fa-info-circle me-2 text-info"></i>About Testing Standards</h5>
+            <p class="mb-0">Testing methodologies, quality assurance procedures, test automation guidelines, and validation standards.</p>
+            {% elif knowledge_type == 'documentation_standards' %}
+            <h5><i class="fas fa-info-circle me-2 text-primary"></i>About Documentation Standards</h5>
+            <p class="mb-0">Documentation templates, writing guidelines, API documentation standards, and knowledge sharing protocols.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Documents List -->
+    {% if docs %}
+    <div class="row">
+        {% for doc in docs|sort(attribute='title') %}
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <div>
+                        {% if doc.knowledge_category %}
+                        <span class="badge bg-secondary">{{ doc.knowledge_category }}</span>
+                        {% endif %}
+                        <span class="badge bg-{{ 'warning' if doc.status == 'draft' else 'info' if doc.status == 'in_review' else 'success' if doc.status == 'approved' else 'secondary' }} ms-1">
+                            {{ doc.status|replace('_', ' ')|title }}
+                        </span>
+                    </div>
+                    {% if doc.latest_version %}
+                    <span class="badge bg-dark">v{{ doc.latest_version.version_number }}</span>
+                    {% endif %}
+                </div>
+                
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <a href="{{ url_for('document_detail', doc_id=doc.id) }}" class="text-decoration-none">
+                            {{ doc.title }}
+                        </a>
+                    </h5>
+                    <p class="card-text text-muted">{{ doc.description|truncate(150) }}</p>
+                    
+                    <!-- Document Metadata -->
+                    <div class="mb-3">
+                        <div class="row small text-muted">
+                            <div class="col-6">
+                                <i class="fas fa-user me-1"></i>
+                                {{ doc.author.username if doc.author else "Unknown" }}
+                            </div>
+                            <div class="col-6">
+                                <i class="fas fa-calendar me-1"></i>
+                                {{ doc.updated_at.strftime('%Y-%m-%d') }}
+                            </div>
+                        </div>
+                        <div class="row small text-muted mt-1">
+                            <div class="col-6">
+                                <i class="fas fa-folder me-1"></i>
+                                {% if doc.project %}
+                                <a href="{{ url_for('project_detail', project_id=doc.project.id) }}" class="text-muted">
+                                    {{ doc.project.name }}
+                                </a>
+                                {% else %}
+                                No project
+                                {% endif %}
+                            </div>
+                            <div class="col-6">
+                                <i class="fas fa-tags me-1"></i>
+                                {% if doc.tags %}
+                                    {% for tag in doc.tags[:2] %}
+                                    <span class="badge bg-light text-dark me-1">{{ tag.name }}</span>
+                                    {% endfor %}
+                                    {% if doc.tags|length > 2 %}
+                                    <span class="text-muted">+{{ doc.tags|length - 2 }} more</span>
+                                    {% endif %}
+                                {% else %}
+                                <span class="text-muted">No tags</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- File Info -->
+                    {% if doc.latest_version %}
+                    <div class="alert alert-light py-2 mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="fas fa-file text-primary me-2"></i>
+                                <strong>{{ doc.latest_version.filename }}</strong>
+                                <div class="small text-muted mt-1">
+                                    <span class="me-3">{{ doc.latest_version.file_type if doc.latest_version.file_type else "Unknown type" }}</span>
+                                    {% if doc.latest_version.file_size %}
+                                    <span>{{ doc.latest_version.formatted_size }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <a href="{{ url_for('download_file', filename=doc.latest_version.filename) }}" 
+                               class="btn btn-sm btn-outline-primary" title="Download">
+                                <i class="fas fa-download"></i>
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Actions -->
+                    <div class="d-flex justify-content-between">
+                        <div class="btn-group">
+                            <a href="{{ url_for('document_detail', doc_id=doc.id) }}" class="btn btn-sm btn-outline-info">
+                                <i class="fas fa-eye me-1"></i>View
+                            </a>
+                            {% if session.get("role") in ["admin", "engineer"] %}
+                            <a href="{{ url_for('edit_document', doc_id=doc.id) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-edit me-1"></i>Edit
+                            </a>
+                            {% endif %}
+                        </div>
+                        <form action="{{ url_for('toggle_knowledge_base', doc_id=doc.id) }}" method="POST" class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-outline-warning">
+                                <i class="fas fa-graduation-cap me-1"></i>Remove from KB
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+        <div class="mb-3">
+            {% if knowledge_type == 'coding_guidelines' %}
+            <i class="fas fa-code fa-3x text-primary mb-3"></i>
+            {% elif knowledge_type == 'system_architecture' %}
+            <i class="fas fa-sitemap fa-3x text-success mb-3"></i>
+            {% elif knowledge_type == 'deployment_notes' %}
+            <i class="fas fa-rocket fa-3x text-info mb-3"></i>
+            {% elif knowledge_type == 'best_practices' %}
+            <i class="fas fa-star fa-3x text-warning mb-3"></i>
+            {% elif knowledge_type == 'security_standards' %}
+            <i class="fas fa-shield-alt fa-3x text-danger mb-3"></i>
+            {% elif knowledge_type == 'code_review_guide' %}
+            <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+            {% elif knowledge_type == 'testing_standards' %}
+            <i class="fas fa-vial fa-3x text-info mb-3"></i>
+            {% elif knowledge_type == 'documentation_standards' %}
+            <i class="fas fa-file-alt fa-3x text-primary mb-3"></i>
+            {% else %}
+            <i class="fas fa-file fa-3x text-muted mb-3"></i>
+            {% endif %}
+        </div>
+        <h4>No {{ formatted_type }} Guidelines Yet</h4>
+        <p class="text-muted mb-4">Be the first to add a guideline to this category</p>
+        <div class="d-flex justify-content-center gap-3">
+            <a href="{{ url_for('documents') }}" class="btn btn-primary">
+                <i class="fas fa-search me-2"></i>Browse Documents
+            </a>
+            <a href="{{ url_for('knowledge_base') }}" class="btn btn-outline-primary">
+                <i class="fas fa-graduation-cap me-2"></i>Back to Knowledge Base
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Quick Links to Other Types -->
+    <div class="card shadow-sm mt-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0"><i class="fas fa-tags me-2"></i>Browse Other Knowledge Types</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                {% for type in KNOWLEDGE_BASE_TYPES %}
+                {% if type != knowledge_type %}
+                <div class="col-md-3 mb-2">
+                    <a href="{{ url_for('knowledge_base_type', knowledge_type=type) }}" 
+                       class="btn btn-outline-secondary btn-sm w-100 text-start">
+                        <i class="fas fa-arrow-right me-2"></i>
+                        {{ type.replace('_', ' ').title() }}
+                    </a>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

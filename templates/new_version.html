@@ -3,10 +3,31 @@
 {% block content %}
 <div class="container mt-4">
     <h2>Upload New Version for: {{ doc.title }}</h2>
-    <p class="text-muted">Current version: 
-        {% set current_version = doc.versions | selectattr("is_current") | first %}
-        v{{ current_version.version_number if current_version else 0 }}
-    </p>
+    
+    <!-- Document Info -->
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <p class="text-muted mb-1">
+                Current version: 
+                {% set current_version = doc.versions | selectattr("is_current") | first %}
+                <span class="badge bg-success">v{{ current_version.version_number if current_version else 0 }}</span>
+            </p>
+            <p class="text-muted mb-1">
+                Next version: 
+                <span class="badge bg-primary">
+                    v{% if current_version %}{{ current_version.version_number + 1 }}{% else %}1{% endif %}
+                </span>
+            </p>
+        </div>
+        <div class="col-md-6 text-end">
+            {% if doc.category %}
+            <span class="badge bg-secondary me-2">{{ doc.category }}</span>
+            {% endif %}
+            <span class="badge bg-{{ 'warning' if doc.status == 'draft' else 'info' if doc.status == 'in_review' else 'success' if doc.status == 'approved' else 'secondary' }}">
+                {{ doc.status|replace('_', ' ')|title if doc.status else 'Draft' }}
+            </span>
+        </div>
+    </div>
 
     <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -20,36 +41,227 @@
       {% endif %}
     {% endwith %}
 
+    <!-- Upload Form -->
     <form method="POST" enctype="multipart/form-data">
+        <!-- File Upload -->
         <div class="mb-3">
-            <label class="form-label">Select File (PDF or Word)</label>
-            <input type="file" name="file" class="form-control" accept=".pdf,.doc,.docx" required>
+            <label class="form-label">Select File <span class="text-danger">*</span></label>
+            <input type="file" name="file" class="form-control" id="fileInput" required>
+            <div class="form-text">
+                Allowed: PDF (.pdf), Word (.doc, .docx), Excel (.xls, .xlsx), PowerPoint (.ppt, .pptx), 
+                Text (.txt, .md), Images (.jpg, .jpeg, .png), Archive (.zip), CSV (.csv), JSON (.json), XML (.xml)
+                <br><span class="text-danger">Maximum file size: 50MB</span>
+            </div>
         </div>
 
-        <button type="submit" class="btn btn-success">Upload New Version</button>
-        <a href="{{ url_for('project_documents', project_id=doc.project.id) }}" class="btn btn-secondary ms-2">Cancel</a>
+        <!-- NEW: Change Description -->
+        <div class="mb-4">
+            <label class="form-label">Change Description <span class="text-danger">*</span></label>
+            <textarea name="change_description" class="form-control" rows="3" 
+                      placeholder="Describe what changed in this version (required)..." required></textarea>
+            <div class="form-text">
+                Be specific about changes: What was added, modified, or removed? Example: "Updated API endpoints in section 3.2"
+            </div>
+        </div>
+
+        <!-- Current Version Details (if exists) -->
+        {% set current_version = doc.versions | selectattr("is_current") | first %}
+        {% if current_version %}
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <strong>Current Version (v{{ current_version.version_number }}) Details</strong>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>File:</strong> {{ current_version.filename }}</p>
+                        <p class="mb-1">
+                            <strong>Size:</strong> 
+                            {% if current_version.file_size %}
+                                <span class="badge bg-light text-dark">{{ current_version.formatted_size }}</span>
+                            {% else %}
+                                <span class="text-muted">Unknown</span>
+                            {% endif %}
+                        </p>
+                        <p class="mb-1"><strong>Type:</strong> {{ current_version.file_type if current_version.file_type else "Unknown" }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Uploaded:</strong> {{ current_version.uploaded_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                        <p class="mb-1">
+                            <strong>By:</strong> 
+                            {% if current_version.uploader %}
+                                {{ current_version.uploader.username }}
+                            {% else %}
+                                <span class="text-muted">Unknown</span>
+                            {% endif %}
+                        </p>
+                        {% if current_version.checksum %}
+                        <p class="mb-0">
+                            <strong>Checksum:</strong> 
+                            <small class="text-muted" title="{{ current_version.checksum }}">
+                                {{ current_version.checksum[:12] }}...
+                            </small>
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% if current_version.change_description %}
+                <div class="mt-2 pt-2 border-top">
+                    <strong>Previous Change:</strong> 
+                    <span class="text-muted">{{ current_version.change_description }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Action Buttons -->
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <button type="submit" class="btn btn-success btn-lg">
+                    <i class="fas fa-upload me-2"></i>Upload New Version
+                </button>
+                <a href="{{ url_for('document_detail', doc_id=doc.id) }}" class="btn btn-secondary ms-2">
+                    <i class="fas fa-times me-2"></i>Cancel
+                </a>
+            </div>
+            <div>
+                <a href="{{ url_for('document_versions', doc_id=doc.id) }}" class="btn btn-outline-info">
+                    <i class="fas fa-history me-2"></i>View Version History
+                </a>
+            </div>
+        </div>
     </form>
 
+    <!-- Previous Versions -->
     {% if doc.versions|length > 1 %}
-    <!-- Show Previous Versions -->
-    <div class="mt-4">
-        <h6>Previous Versions:</h6>
-        <ul class="list-group">
+    <div class="mt-5">
+        <h5>Previous Versions:</h5>
+        <div class="list-group">
             {% for version in doc.versions | sort(attribute='version_number', reverse=True) %}
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-                v{{ version.version_number }} - uploaded {{ version.uploaded_at.strftime('%Y-%m-%d') }}
-                {% if version.is_current %}
-                    <span class="badge bg-success">Current</span>
-                {% else %}
-                    <form action="{{ url_for('rollback_version', version_id=version.id) }}" method="POST" class="mb-0">
-                        <button type="submit" class="btn btn-sm btn-warning">Rollback</button>
-                    </form>
-                {% endif %}
-            </li>
+            <div class="list-group-item {% if version.is_current %}bg-light{% endif %}">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <div class="d-flex align-items-center mb-1">
+                            <strong class="me-2">v{{ version.version_number }}</strong>
+                            {% if version.is_current %}
+                                <span class="badge bg-success">Current</span>
+                            {% endif %}
+                            <span class="text-muted ms-3">
+                                <i class="fas fa-calendar me-1"></i>{{ version.uploaded_at.strftime('%Y-%m-%d %H:%M') }}
+                            </span>
+                        </div>
+                        
+                        {% if version.change_description %}
+                        <div class="small text-muted mb-1">
+                            <i class="fas fa-comment me-1"></i>
+                            {{ version.change_description|truncate(150) }}
+                        </div>
+                        {% endif %}
+                        
+                        <div class="small">
+                            {% if version.file_type %}
+                            <span class="badge bg-light text-dark me-2">{{ version.file_type }}</span>
+                            {% endif %}
+                            {% if version.file_size %}
+                            <span class="badge bg-light text-dark me-2">{{ version.formatted_size }}</span>
+                            {% endif %}
+                            {% if version.uploader %}
+                            <span class="text-muted">
+                                <i class="fas fa-user me-1"></i>{{ version.uploader.username }}
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="btn-group ms-3">
+                        <a href="{{ url_for('download_file', filename=version.filename) }}" 
+                           class="btn btn-sm btn-outline-primary" title="Download">
+                            <i class="fas fa-download"></i>
+                        </a>
+                        {% if not version.is_current and session.get('role') in ['admin', 'engineer'] %}
+                        <form action="{{ url_for('rollback_version', version_id=version.id) }}" method="POST" class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-outline-warning" title="Rollback to this version"
+                                    onclick="return confirm('Rollback to version {{ version.version_number }}? This will create a new version based on this file.')">
+                                <i class="fas fa-undo"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
             {% endfor %}
-        </ul>
+        </div>
     </div>
     {% endif %}
-
 </div>
+
+<style>
+.badge {
+    font-size: 0.8em;
+}
+.list-group-item {
+    border-left: none;
+    border-right: none;
+}
+.list-group-item:first-child {
+    border-top: none;
+}
+.btn-group .btn {
+    padding: 0.25rem 0.5rem;
+}
+</style>
+
+<script>
+// File validation
+document.getElementById('fileInput').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    const maxSize = 50 * 1024 * 1024; // 50MB
+    
+    if (file) {
+        // Check file size
+        if (file.size > maxSize) {
+            alert('❌ File size exceeds 50MB limit. Please choose a smaller file.');
+            e.target.value = '';
+            return;
+        }
+        
+        // Show file info
+        const fileInfo = document.getElementById('fileInfo');
+        if (!fileInfo) {
+            const infoDiv = document.createElement('div');
+            infoDiv.id = 'fileInfo';
+            infoDiv.className = 'alert alert-light mt-2';
+            infoDiv.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-file text-primary me-3 fs-4"></i>
+                    <div>
+                        <strong>Selected file:</strong> ${file.name}<br>
+                        <small class="text-muted">
+                            Size: ${(file.size / (1024*1024)).toFixed(2)} MB | 
+                            Type: ${file.type || 'Unknown'}
+                        </small>
+                    </div>
+                </div>
+            `;
+            e.target.parentNode.appendChild(infoDiv);
+        } else {
+            fileInfo.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-file text-primary me-3 fs-4"></i>
+                    <div>
+                        <strong>Selected file:</strong> ${file.name}<br>
+                        <small class="text-muted">
+                            Size: ${(file.size / (1024*1024)).toFixed(2)} MB | 
+                            Type: ${file.type || 'Unknown'}
+                        </small>
+                    </div>
+                </div>
+            `;
+        }
+    } else {
+        const fileInfo = document.getElementById('fileInfo');
+        if (fileInfo) fileInfo.remove();
+    }
+});
+</script>
 {% endblock %}

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DocPortal - Engineering Documentation Portal</title>
     <!-- Add this in the <head> section of base.html -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
     <!-- BOOTSTRAP 5 CSS - THIS FIXES PLAIN TEXT -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -23,6 +23,16 @@
         }
         .container {
             max-width: 1200px;
+        }
+        .notification-badge {
+            font-size: 0.7em;
+            padding: 0.25em 0.6em;
+        }
+        .knowledge-base-badge {
+            font-size: 0.6em;
+            padding: 0.2em 0.4em;
+            position: relative;
+            top: -2px;
         }
     </style>
 </head>
@@ -52,15 +62,24 @@
                     <a class="nav-link {% if request.endpoint == 'documents' %}active{% endif %}"
                        href="{{ url_for('documents') }}">Documents</a>
                 </li>
+                
+                <!-- =========== KNOWLEDGE BASE MENU ITEM =========== -->
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint in ['knowledge_base', 'knowledge_base_type', 'knowledge_base_category'] %}active{% endif %}"
+                       href="{{ url_for('knowledge_base') }}">
+                        <i class="fas fa-graduation-cap me-1"></i>Knowledge Base
+                        <span class="knowledge-base-badge badge bg-warning text-dark ms-1">NEW</span>
+                    </a>
+                </li>
+                <!-- =========== END KNOWLEDGE BASE MENU ITEM =========== -->
+                
                 <li class="nav-item">
                     <a class="nav-link {% if request.endpoint in ['projects', 'project_detail'] %}active{% endif %}"
                        href="{{ url_for('projects') }}">Projects</a>
                 </li>
-                
-                <!-- Profile Link for all logged-in users -->
                 <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint == 'profile' %}active{% endif %}"
-                       href="{{ url_for('profile') }}">Profile</a>
+                    <a class="nav-link {% if request.endpoint == 'tags' %}active{% endif %}"
+                       href="{{ url_for('tags') }}">Tags</a>
                 </li>
                 
                 {% if session.get('role') == 'admin' %}
@@ -79,24 +98,74 @@
                         <li><a class="dropdown-item" href="{{ url_for('projects') }}">Manage Projects</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="{{ url_for('documents') }}">All Documents</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('knowledge_base') }}">
+                            <i class="fas fa-graduation-cap me-2"></i>Knowledge Base
+                        </a></li>
                     </ul>
                 </li>
                 {% endif %}
                 {% endif %}
             </ul>
 
-            <!-- Right: Auth -->
+            <!-- Right: Search, Notifications, and User -->
             <ul class="navbar-nav">
                 {% if session.get('user_id') %}
+                <!-- Search Bar -->
                 <li class="nav-item me-2">
-                    <span class="navbar-text text-white">
-                        {{ session.get('username') }} ({{ session.get('role') }})
-                    </span>
+                    <form class="d-flex" action="{{ url_for('search') }}" method="GET">
+                        <input class="form-control form-control-sm" type="search" 
+                               placeholder="Search documents..." name="q" 
+                               aria-label="Search" value="{{ request.args.get('q', '') }}">
+                        <button class="btn btn-outline-light btn-sm ms-1" type="submit">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </form>
                 </li>
+                
+                <!-- Notification Bell -->
                 <li class="nav-item">
-                    <a class="btn btn-outline-light btn-sm" href="{{ url_for('logout') }}">Logout</a>
+                    <a class="nav-link position-relative" href="{{ url_for('notifications') }}" 
+                       title="Notifications" id="notificationBell">
+                        <i class="fas fa-bell"></i>
+                        <span id="notificationBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger notification-badge d-none">
+                            0
+                        </span>
+                    </a>
+                </li>
+                
+                <!-- User Dropdown -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle d-flex align-items-center" 
+                       href="#" 
+                       id="userDropdown" 
+                       role="button" 
+                       data-bs-toggle="dropdown" 
+                       aria-expanded="false">
+                        <i class="fas fa-user me-1"></i>
+                        {{ session.get('username') }}
+                        <small class="text-light ms-1">({{ session.get('role') }})</small>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                        <li><a class="dropdown-item" href="{{ url_for('profile') }}">
+                            <i class="fas fa-user-circle me-2"></i>Profile
+                        </a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('notifications') }}">
+                            <i class="fas fa-bell me-2"></i>Notifications
+                            <span id="notificationDropdownBadge" class="badge bg-danger float-end d-none">0</span>
+                        </a></li>
+                        <!-- =========== ADD KNOWLEDGE BASE TO USER DROPDOWN =========== -->
+                        <li><a class="dropdown-item" href="{{ url_for('knowledge_base') }}">
+                            <i class="fas fa-graduation-cap me-2"></i>Knowledge Base
+                        </a></li>
+                        <!-- =========== END ADDITION =========== -->
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{{ url_for('logout') }}">
+                            <i class="fas fa-sign-out-alt me-2"></i>Logout
+                        </a></li>
+                    </ul>
                 </li>
                 {% else %}
+                <!-- Login button for non-logged in users -->
                 <li class="nav-item">
                     <a class="btn btn-outline-light btn-sm" href="{{ url_for('login') }}">Login</a>
                 </li>
@@ -127,7 +196,22 @@
 <!-- FOOTER -->
 <footer class="mt-5 py-3 border-top">
     <div class="container text-center">
-        <span class="text-muted">© {{ now().year }} DocPortal - Engineering Documentation & Collaboration Portal</span>
+        <span class="text-muted">© {{ now.year }} DocPortal - Engineering Documentation & Collaboration Portal</span>
+        <!-- =========== ADD KNOWLEDGE BASE TO FOOTER =========== -->
+        <div class="mt-2 small">
+            <a href="{{ url_for('knowledge_base') }}" class="text-decoration-none text-muted me-3">
+                <i class="fas fa-graduation-cap me-1"></i>Knowledge Base
+            </a>
+            <span class="text-muted">|</span>
+            <a href="{{ url_for('documents') }}" class="text-decoration-none text-muted mx-3">
+                <i class="fas fa-file-alt me-1"></i>Documents
+            </a>
+            <span class="text-muted">|</span>
+            <a href="{{ url_for('projects') }}" class="text-decoration-none text-muted ms-3">
+                <i class="fas fa-folder me-1"></i>Projects
+            </a>
+        </div>
+        <!-- =========== END ADDITION =========== -->
     </div>
 </footer>
 
@@ -143,6 +227,79 @@
             bsAlert.close();
         });
     }, 5000);
+    
+    // =========== KNOWLEDGE BASE BADGE ANIMATION ===========
+    document.addEventListener('DOMContentLoaded', function() {
+        const kbBadge = document.querySelector('.knowledge-base-badge');
+        if (kbBadge) {
+            // Pulsing animation for "NEW" badge
+            setInterval(function() {
+                kbBadge.classList.toggle('bg-warning');
+                kbBadge.classList.toggle('bg-light');
+            }, 2000);
+            
+            // Remove badge after 2 weeks (simulated with click)
+            const removeBadgeAfterClick = function() {
+                kbBadge.style.transition = 'opacity 0.5s';
+                kbBadge.style.opacity = '0';
+                setTimeout(function() {
+                    kbBadge.remove();
+                }, 500);
+                // Remove event listener after first click
+                document.removeEventListener('click', removeBadgeAfterClick);
+            };
+            
+            // Remove badge when user clicks anywhere (simulating they've seen it)
+            document.addEventListener('click', removeBadgeAfterClick);
+        }
+    });
+    // =========== END KNOWLEDGE BASE BADGE ANIMATION ===========
+</script>
+
+<!-- Notification Update Script -->
+<script>
+// Function to update notification count
+function updateNotificationCount() {
+    fetch('/api/notifications/count')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            const badge = document.getElementById('notificationBadge');
+            const dropdownBadge = document.getElementById('notificationDropdownBadge');
+            
+            if (data.count > 0) {
+                if (badge) {
+                    badge.textContent = data.count;
+                    badge.classList.remove('d-none');
+                }
+                if (dropdownBadge) {
+                    dropdownBadge.textContent = data.count;
+                    dropdownBadge.classList.remove('d-none');
+                }
+            } else {
+                if (badge) badge.classList.add('d-none');
+                if (dropdownBadge) dropdownBadge.classList.add('d-none');
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching notifications:', error);
+        });
+}
+
+// Update on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Only update notification count if user is logged in
+    {% if session.get('user_id') %}
+    updateNotificationCount();
+    
+    // Update every 30 seconds
+    setInterval(updateNotificationCount, 30000);
+    {% endif %}
+});
 </script>
 
 </body>

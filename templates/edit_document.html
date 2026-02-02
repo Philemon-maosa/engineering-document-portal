@@ -2,104 +2,588 @@
 
 {% block content %}
 <div class="container mt-4">
+    <!-- Breadcrumb Navigation -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('home') }}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('documents') }}">Documents</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('document_detail', doc_id=doc.id) }}">{{ doc.title|truncate(20) }}</a></li>
+            <li class="breadcrumb-item active">Edit</li>
+        </ol>
+    </nav>
 
-    <h2>Edit Document</h2>
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="fas fa-edit me-2"></i>Edit Document</h4>
+                </div>
+                
+                <div class="card-body">
+                    <!-- Flash Messages -->
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                      {% if messages %}
+                        {% for category, message in messages %}
+                          <div class="alert alert-{{ 'success' if category=='success' else 'danger' if category == 'danger' else 'warning' }} alert-dismissible fade show" role="alert">
+                            <i class="fas fa-{{ 'check-circle' if category == 'success' else 'exclamation-triangle' if category == 'danger' else 'info-circle' }} me-2"></i>
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                          </div>
+                        {% endfor %}
+                      {% endif %}
+                    {% endwith %}
 
-    <!-- Flash Messages -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-          <div class="alert alert-{{ 'success' if category=='success' else 'danger' }} alert-dismissible fade show" role="alert">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-          </div>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
+                    <form method="POST" action="{{ url_for('edit_document', doc_id=doc.id) }}">
+                        <!-- Basic Information -->
+                        <div class="mb-4">
+                            <h5><i class="fas fa-info-circle me-2"></i>Basic Information</h5>
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <div class="mb-3">
+                                        <label class="form-label">Title <span class="text-danger">*</span></label>
+                                        <input type="text" name="title" value="{{ doc.title }}" class="form-control" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Category</label>
+                                        <select name="category" class="form-select">
+                                            {% for category in DOCUMENT_CATEGORIES %}
+                                            <option value="{{ category }}" {% if doc.category == category %}selected{% endif %}>
+                                                {{ category }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Description <span class="text-danger">*</span></label>
+                                <textarea name="description" class="form-control" rows="4" required>{{ doc.description }}</textarea>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Status</label>
+                                        <select name="status" class="form-select">
+                                            {% for status in DOCUMENT_STATUSES %}
+                                            <option value="{{ status }}" {% if doc.status == status %}selected{% endif %}>
+                                                {{ status|replace('_', ' ')|title }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                        <div class="form-text">
+                                            Draft → In Review → Approved → Archived
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Assign to Project (optional)</label>
+                                        <select name="project_id" class="form-select">
+                                            <option value="">-- No Project --</option>
+                                            {% for project in projects %}
+                                                <option value="{{ project.id }}" {% if doc.project_id == project.id %}selected{% endif %}>
+                                                    {{ project.name }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
-    <form method="POST" action="{{ url_for('edit_document', doc_id=doc.id) }}" enctype="multipart/form-data">
+                        <!-- =========== KNOWLEDGE BASE SECTION =========== -->
+                        <div class="mb-4">
+                            <h5><i class="fas fa-graduation-cap me-2"></i>Knowledge Base Settings</h5>
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                Mark this document as part of the Engineering Knowledge Base to make it
+                                available in the central repository of standards, guidelines, and best practices.
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="is_knowledge_base" id="is_knowledge_base" 
+                                               {% if doc.is_knowledge_base %}checked{% endif %}>
+                                        <label class="form-check-label" for="is_knowledge_base">
+                                            <strong>Include in Knowledge Base</strong>
+                                            <div class="form-text">
+                                                This document will appear in the Engineering Knowledge Base
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div id="knowledgeBaseFields" {% if not doc.is_knowledge_base %}style="display: none;"{% endif %}>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Knowledge Type</label>
+                                            <select name="knowledge_type" class="form-select">
+                                                <option value="">-- Select Type --</option>
+                                                {% for ktype in KNOWLEDGE_BASE_TYPES %}
+                                                <option value="{{ ktype }}" 
+                                                        {% if doc.knowledge_type == ktype %}selected{% endif %}>
+                                                    {{ ktype.replace('_', ' ').title() }}
+                                                </option>
+                                                {% endfor %}
+                                            </select>
+                                            <div class="form-text">
+                                                What type of knowledge does this document contain?
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Knowledge Category</label>
+                                            <select name="knowledge_category" class="form-select">
+                                                <option value="">-- Select Category --</option>
+                                                {% for category in KNOWLEDGE_BASE_CATEGORIES %}
+                                                <option value="{{ category }}" 
+                                                        {% if doc.knowledge_category == category %}selected{% endif %}>
+                                                    {{ category }}
+                                                </option>
+                                                {% endfor %}
+                                            </select>
+                                            <div class="form-text">
+                                                Which team or area does this apply to?
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="alert alert-light">
+                                    <h6><i class="fas fa-lightbulb me-2"></i>Knowledge Base Usage:</h6>
+                                    <ul class="mb-0">
+                                        <li><strong>Coding Guidelines:</strong> Style guides, code conventions</li>
+                                        <li><strong>System Architecture:</strong> Design patterns, architecture decisions</li>
+                                        <li><strong>Best Practices:</strong> Recommended approaches and methodologies</li>
+                                        <li><strong>Security Standards:</strong> Security protocols and guidelines</li>
+                                        <li><strong>Documentation Standards:</strong> How to write good documentation</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- =========== END KNOWLEDGE BASE SECTION =========== -->
 
-        <!-- Title -->
-        <div class="mb-3">
-            <label class="form-label">Title</label>
-            <input type="text" name="title" value="{{ doc.title }}" class="form-control" required>
+                        <!-- Tags Section -->
+                        <div class="mb-4">
+                            <h5><i class="fas fa-tags me-2"></i>Tags</h5>
+                            <div class="mb-3">
+                                <label class="form-label">Select Existing Tags</label>
+                                <select name="tags" class="form-select" multiple size="4">
+                                    {% for tag in all_tags %}
+                                        <option value="{{ tag.id }}" {% if tag in doc.tags %}selected{% endif %}>
+                                            {{ tag.name }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">
+                                    Hold Ctrl (Cmd on Mac) to select multiple tags
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Add New Tags</label>
+                                <div class="input-group">
+                                    <input type="text" id="newTagInput" class="form-control" placeholder="Enter new tags, comma-separated">
+                                    <button type="button" class="btn btn-outline-secondary" id="addTagsBtn">
+                                        <i class="fas fa-plus"></i> Add
+                                    </button>
+                                </div>
+                                <div class="form-text">
+                                    Example: "api, documentation, backend"
+                                </div>
+                            </div>
+                            
+                            <!-- Selected Tags Display -->
+                            <div class="mt-2" id="selectedTags">
+                                {% for tag in doc.tags %}
+                                <span class="badge bg-light text-dark me-1 mb-1">
+                                    {{ tag.name }}
+                                    <input type="hidden" name="selected_tags" value="{{ tag.id }}">
+                                    <button type="button" class="btn-close btn-close-sm ms-1" onclick="removeTag(this)"></button>
+                                </span>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Version Management (Read-only) -->
+                        <div class="mb-4">
+                            <h5><i class="fas fa-history me-2"></i>Version Management</h5>
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                To upload a new version, use the "Upload New Version" button below.
+                                Version management is handled separately to maintain audit trail.
+                            </div>
+                            
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Version</th>
+                                            <th>File</th>
+                                            <th>Size</th>
+                                            <th>Uploaded</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for version in doc.versions | sort(attribute='version_number', reverse=True) %}
+                                        <tr class="{% if version.is_current %}table-success{% endif %}">
+                                            <td>
+                                                v{{ version.version_number }}
+                                                {% if version.is_current %}
+                                                <span class="badge bg-success ms-1">Current</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ version.filename }}</td>
+                                            <td>
+                                                {% if version.file_size %}
+                                                <span class="badge bg-light text-dark">{{ version.formatted_size }}</span>
+                                                {% else %}
+                                                <span class="text-muted">Unknown</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ version.uploaded_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <a href="{{ url_for('download_file', filename=version.filename) }}" 
+                                                       class="btn btn-outline-primary" title="Download">
+                                                        <i class="fas fa-download"></i>
+                                                    </a>
+                                                    {% if not version.is_current and session.get("role") in ["admin", "engineer"] %}
+                                                    <form action="{{ url_for('rollback_version', version_id=version.id) }}" 
+                                                          method="POST" class="d-inline">
+                                                        <button type="submit" class="btn btn-outline-warning" title="Rollback"
+                                                                onclick="return confirm('Rollback to version {{ version.version_number }}?')">
+                                                            <i class="fas fa-undo"></i>
+                                                        </button>
+                                                    </form>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Submit Buttons -->
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <button type="submit" class="btn btn-success btn-lg">
+                                    <i class="fas fa-save me-2"></i>Update Document
+                                </button>
+                                <a href="{{ url_for('document_detail', doc_id=doc.id) }}" class="btn btn-secondary ms-2">
+                                    <i class="fas fa-times me-2"></i>Cancel
+                                </a>
+                            </div>
+                            <div>
+                                <a href="{{ url_for('upload_new_version', doc_id=doc.id) }}" class="btn btn-warning">
+                                    <i class="fas fa-upload me-2"></i>Upload New Version
+                                </a>
+                                <a href="{{ url_for('document_versions', doc_id=doc.id) }}" class="btn btn-info ms-2">
+                                    <i class="fas fa-history me-2"></i>Full Version History
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
-
-        <!-- Description -->
-        <div class="mb-3">
-            <label class="form-label">Description</label>
-            <textarea name="description" class="form-control" required>{{ doc.description }}</textarea>
-        </div>
-
-        <!-- Project Assignment -->
-        <div class="mb-3">
-            <label class="form-label">Assign to Project (optional)</label>
-            <select name="project_id" class="form-select">
-                <option value="">-- No Project --</option>
-                {% for project in projects %}
-                    <option value="{{ project.id }}" {% if doc.project_id == project.id %}selected{% endif %}>
-                        {{ project.name }}
-                    </option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <!-- Tags Assignment -->
-        <div class="mb-3">
-            <label class="form-label">Tags</label>
-            <select name="tags" class="form-select" multiple>
-                {% for tag in all_tags %}
-                    <option value="{{ tag.id }}" {% if tag in doc.tags %}selected{% endif %}>
-                        {{ tag.name }}
-                    </option>
-                {% endfor %}
-            </select>
-            <small class="form-text text-muted">
-                Hold Ctrl (Cmd on Mac) to select multiple existing tags, or add new tags separated by commas in the input below.
-            </small>
-            <input type="text" name="new_tags" class="form-control mt-1" placeholder="Add new tags, comma-separated">
-        </div>
-
-        <!-- Current Versions -->
-        <div class="mb-3">
-            <label class="form-label">Current Versions</label>
-            <ul class="list-group mb-2">
-                {% for version in doc.versions | sort(attribute='version_number', reverse=True) %}
-                <li class="list-group-item d-flex justify-content-between align-items-center">
-                    <div>
-                        v{{ version.version_number }} - uploaded {{ version.uploaded_at.strftime('%Y-%m-%d %H:%M') }}
-                        {% if version.is_current %}
-                            <span class="badge bg-success ms-2">Current</span>
+        
+        <!-- Sidebar with Document Info -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>Document Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h6>Current Status</h6>
+                        <span class="badge bg-{{ 'warning' if doc.status == 'draft' else 'info' if doc.status == 'in_review' else 'success' if doc.status == 'approved' else 'secondary' }} fs-6">
+                            {{ doc.status|replace('_', ' ')|title if doc.status else 'Draft' }}
+                        </span>
+                    </div>
+                    
+                    <!-- =========== KNOWLEDGE BASE INFO =========== -->
+                    {% if doc.is_knowledge_base %}
+                    <div class="mb-3">
+                        <h6>Knowledge Base Status</h6>
+                        <span class="badge bg-success fs-6">
+                            <i class="fas fa-graduation-cap me-1"></i>In Knowledge Base
+                        </span>
+                        
+                        {% if doc.knowledge_type %}
+                        <div class="mt-2">
+                            <small class="text-muted">Type:</small><br>
+                            <span class="badge bg-info">{{ doc.formatted_knowledge_type }}</span>
+                        </div>
+                        {% endif %}
+                        
+                        {% if doc.knowledge_category %}
+                        <div class="mt-2">
+                            <small class="text-muted">Category:</small><br>
+                            <span class="badge bg-secondary">{{ doc.knowledge_category }}</span>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Quick toggle form -->
+                        <div class="mt-3">
+                            <form action="{{ url_for('toggle_knowledge_base', doc_id=doc.id) }}" method="POST">
+                                <button type="submit" class="btn btn-sm btn-outline-danger w-100">
+                                    <i class="fas fa-times me-1"></i>Remove from Knowledge Base
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="mb-3">
+                        <h6>Knowledge Base Status</h6>
+                        <span class="badge bg-light text-dark fs-6 border">
+                            <i class="fas fa-file me-1"></i>Regular Document
+                        </span>
+                        
+                        <!-- Quick toggle form -->
+                        <div class="mt-3">
+                            <form action="{{ url_for('toggle_knowledge_base', doc_id=doc.id) }}" method="POST">
+                                <button type="submit" class="btn btn-sm btn-outline-success w-100">
+                                    <i class="fas fa-graduation-cap me-1"></i>Add to Knowledge Base
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endif %}
+                    <!-- =========== END KNOWLEDGE BASE INFO =========== -->
+                    
+                    <div class="mb-3">
+                        <h6>Current Category</h6>
+                        <span class="badge bg-secondary fs-6">{{ doc.category if doc.category else 'General' }}</span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6>Document Details</h6>
+                        <ul class="list-unstyled small">
+                            <li><i class="fas fa-user me-2"></i><strong>Author:</strong> {{ doc.author.username }}</li>
+                            <li><i class="fas fa-calendar-plus me-2"></i><strong>Created:</strong> {{ doc.created_at.strftime('%Y-%m-%d') }}</li>
+                            <li><i class="fas fa-clock me-2"></i><strong>Updated:</strong> {{ doc.updated_at.strftime('%Y-%m-%d') }}</li>
+                            <li><i class="fas fa-folder me-2"></i><strong>Project:</strong> 
+                                {% if doc.project %}
+                                {{ doc.project.name }}
+                                {% else %}
+                                <span class="text-muted">Not assigned</span>
+                                {% endif %}
+                            </li>
+                            <li><i class="fas fa-hashtag me-2"></i><strong>Tags:</strong> 
+                                {% if doc.tags %}
+                                    {% for tag in doc.tags %}
+                                    <span class="badge bg-light text-dark me-1">{{ tag.name }}</span>
+                                    {% endfor %}
+                                {% else %}
+                                <span class="text-muted">None</span>
+                                {% endif %}
+                            </li>
+                        </ul>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6>Current File</h6>
+                        {% set current_version = doc.versions[0] if doc.versions else None %}
+                        {% if current_version %}
+                        <div class="alert alert-light">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-file text-primary me-3 fs-4"></i>
+                                <div>
+                                    <strong>{{ current_version.filename }}</strong><br>
+                                    <small class="text-muted">
+                                        v{{ current_version.version_number }} | 
+                                        {{ current_version.file_type if current_version.file_type else 'Unknown type' }}
+                                        {% if current_version.file_size %}
+                                        | {{ current_version.formatted_size }}
+                                        {% endif %}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        <a href="{{ url_for('download_file', filename=current_version.filename) }}" 
+                           class="btn btn-outline-primary btn-sm w-100">
+                            <i class="fas fa-download me-2"></i>Download Current Version
+                        </a>
+                        {% else %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            No file uploaded yet
+                        </div>
                         {% endif %}
                     </div>
-                    <div>
-                        <a href="{{ url_for('download_file', filename=version.filename) }}" class="btn btn-sm btn-outline-info me-1">Download</a>
-                        {% if session.get("role") in ["admin", "engineer"] and not version.is_current %}
-                        <form action="{{ url_for('rollback_version', version_id=version.id) }}" method="POST" class="d-inline">
-                            <button type="submit" class="btn btn-sm btn-warning" onclick="return confirm('Rollback to this version?');">Rollback</button>
-                        </form>
-                        {% endif %}
+                    
+                    <!-- Quick Actions -->
+                    <div class="mt-4">
+                        <h6>Quick Actions</h6>
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('knowledge_base') }}" class="btn btn-outline-success">
+                                <i class="fas fa-graduation-cap me-2"></i>View Knowledge Base
+                            </a>
+                            <a href="{{ url_for('document_detail', doc_id=doc.id) }}" class="btn btn-outline-info">
+                                <i class="fas fa-eye me-2"></i>View Document
+                            </a>
+                            <a href="{{ url_for('documents') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-list me-2"></i>Back to Documents
+                            </a>
+                            {% if session.get("role") == "admin" %}
+                            <form action="{{ url_for('delete_document', doc_id=doc.id) }}" method="POST" class="d-grid">
+                                <button type="submit" class="btn btn-outline-danger"
+                                        onclick="return confirm('Permanently delete this document and all versions?')">
+                                    <i class="fas fa-trash me-2"></i>Delete Document
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
                     </div>
-                </li>
-                {% endfor %}
-            </ul>
+                </div>
+            </div>
         </div>
-
-        <!-- Upload New Version -->
-        <div class="mb-3">
-            <label class="form-label">Upload New Version (PDF or Word)</label>
-            <input type="file" name="file" class="form-control" accept=".pdf,.doc,.docx">
-        </div>
-
-        <!-- Submit Buttons -->
-        <button type="submit" class="btn btn-success">Update Document</button>
-        {% if doc.project %}
-        <a href="{{ url_for('project_detail', project_id=doc.project.id) }}" class="btn btn-secondary ms-2">Back to Project Documents</a>
-        {% else %}
-        <a href="{{ url_for('documents') }}" class="btn btn-secondary ms-2">Back to Documents</a>
-        {% endif %}
-
-    </form>
-
+    </div>
 </div>
+
+<style>
+.card {
+    border: 1px solid rgba(0,0,0,0.125);
+}
+.badge {
+    font-size: 0.8em;
+}
+.table td {
+    vertical-align: middle;
+}
+.btn-group .btn {
+    padding: 0.25rem 0.5rem;
+}
+#selectedTags .badge {
+    font-size: 0.9em;
+    padding: 0.5em 0.75em;
+}
+#knowledgeBaseFields {
+    transition: all 0.3s ease;
+}
+</style>
+
+<script>
+// Tags management
+document.addEventListener('DOMContentLoaded', function() {
+    const newTagInput = document.getElementById('newTagInput');
+    const addTagsBtn = document.getElementById('addTagsBtn');
+    const selectedTagsContainer = document.getElementById('selectedTags');
+    
+    // Get existing tag IDs from the multiple select
+    const existingTagSelect = document.querySelector('select[name="tags"]');
+    let selectedTagIds = new Set();
+    
+    // Initialize with currently selected tags
+    Array.from(existingTagSelect.selectedOptions).forEach(option => {
+        selectedTagIds.add(option.value);
+    });
+    
+    // Add new tags button
+    addTagsBtn.addEventListener('click', function() {
+        const tagText = newTagInput.value.trim();
+        if (!tagText) return;
+        
+        const tags = tagText.split(',').map(tag => tag.trim()).filter(tag => tag);
+        
+        tags.forEach(tagName => {
+            // Check if this is a new tag (not in existing select)
+            const existingOption = Array.from(existingTagSelect.options).find(opt => 
+                opt.text.toLowerCase() === tagName.toLowerCase()
+            );
+            
+            if (existingOption) {
+                // Tag exists in database
+                if (!selectedTagIds.has(existingOption.value)) {
+                    existingOption.selected = true;
+                    selectedTagIds.add(existingOption.value);
+                    addTagBadge(tagName, existingOption.value, false);
+                }
+            } else {
+                // New tag - we'll handle this server-side
+                addTagBadge(tagName, '', true);
+            }
+        });
+        
+        newTagInput.value = '';
+    });
+    
+    // Allow Enter key to add tags
+    newTagInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addTagsBtn.click();
+        }
+    });
+    
+    function addTagBadge(tagName, tagId, isNew) {
+        const badge = document.createElement('span');
+        badge.className = 'badge bg-light text-dark me-1 mb-1';
+        
+        if (isNew) {
+            badge.innerHTML = `
+                ${tagName}
+                <input type="hidden" name="new_tags" value="${tagName}">
+                <button type="button" class="btn-close btn-close-sm ms-1" onclick="removeTag(this)"></button>
+            `;
+        } else {
+            badge.innerHTML = `
+                ${tagName}
+                <input type="hidden" name="selected_tags" value="${tagId}">
+                <button type="button" class="btn-close btn-close-sm ms-1" onclick="removeTag(this)"></button>
+            `;
+        }
+        
+        selectedTagsContainer.appendChild(badge);
+    }
+    
+    // =========== KNOWLEDGE BASE TOGGLE ===========
+    const knowledgeBaseToggle = document.getElementById('is_knowledge_base');
+    const knowledgeBaseFields = document.getElementById('knowledgeBaseFields');
+    
+    if (knowledgeBaseToggle) {
+        knowledgeBaseToggle.addEventListener('change', function() {
+            if (this.checked) {
+                knowledgeBaseFields.style.display = 'block';
+                // Smooth slide down animation
+                knowledgeBaseFields.style.opacity = '0';
+                knowledgeBaseFields.style.transform = 'translateY(-10px)';
+                setTimeout(() => {
+                    knowledgeBaseFields.style.transition = 'all 0.3s ease';
+                    knowledgeBaseFields.style.opacity = '1';
+                    knowledgeBaseFields.style.transform = 'translateY(0)';
+                }, 10);
+            } else {
+                // Smooth slide up animation
+                knowledgeBaseFields.style.opacity = '0';
+                knowledgeBaseFields.style.transform = 'translateY(-10px)';
+                setTimeout(() => {
+                    knowledgeBaseFields.style.display = 'none';
+                }, 300);
+            }
+        });
+    }
+    // =========== END KNOWLEDGE BASE TOGGLE ===========
+});
+
+// Global function to remove tags
+function removeTag(button) {
+    const badge = button.parentElement;
+    badge.remove();
+}
+</script>
 {% endblock %}

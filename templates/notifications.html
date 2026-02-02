@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Notifications - Engineering Documentation Portal{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1>
+                    <i class="fas fa-bell me-2"></i>Notifications
+                    {% if unread_count > 0 %}
+                    <span class="badge bg-danger">{{ unread_count }} unread</span>
+                    {% endif %}
+                </h1>
+                
+                <div class="btn-group">
+                    {% if notifications %}
+                    <form method="POST" action="{{ url_for('mark_all_notifications_read') }}" class="d-inline">
+                        <button type="submit" class="btn btn-outline-success">
+                            <i class="fas fa-check-double"></i> Mark All Read
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ url_for('clear_all_notifications') }}" class="d-inline ms-2">
+                        <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Clear all notifications?')">
+                            <i class="fas fa-trash"></i> Clear All
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if notifications %}
+            <div class="list-group">
+                {% for notification in notifications %}
+                <div class="list-group-item list-group-item-action {% if not notification.is_read %}list-group-item-primary{% endif %}">
+                    <div class="d-flex w-100 justify-content-between">
+                        <div class="flex-grow-1">
+                            <h5 class="mb-1">
+                                {% if not notification.is_read %}
+                                <span class="badge bg-primary me-2">NEW</span>
+                                {% endif %}
+                                {{ notification.title }}
+                            </h5>
+                            <p class="mb-1">{{ notification.message }}</p>
+                            <small class="text-muted">
+                                <i class="fas fa-clock me-1"></i>{{ notification.time_ago }}
+                                {% if notification.notification_type %}
+                                <i class="fas fa-tag ms-3 me-1"></i>{{ notification.notification_type|replace('_', ' ')|title }}
+                                {% endif %}
+                            </small>
+                        </div>
+                        <div class="d-flex flex-column align-items-end">
+                            {% if notification.link %}
+                            <a href="{{ url_for('mark_notification_read', notification_id=notification.id) }}" 
+                               class="btn btn-sm {% if notification.is_read %}btn-outline-primary{% else %}btn-primary{% endif %} mb-2">
+                                {% if notification.is_read %}
+                                <i class="fas fa-eye"></i> View
+                                {% else %}
+                                <i class="fas fa-envelope-open"></i> Open
+                                {% endif %}
+                            </a>
+                            {% else %}
+                            <a href="{{ url_for('mark_notification_read', notification_id=notification.id) }}" 
+                               class="btn btn-sm btn-outline-secondary mb-2">
+                                <i class="fas fa-check"></i> Mark Read
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-bell-slash fa-4x text-muted mb-3"></i>
+                <h3>No notifications</h3>
+                <p class="text-muted">You're all caught up!</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('home') }}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('documents') }}">Documents</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('document_detail', doc_id=doc.id) }}">{{ doc.title }}</a></li>
+            <li class="breadcrumb-item active">Version History</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>Version History</h2>
+            <p class="text-muted mb-0">{{ doc.title }}</p>
+        </div>
+        <div>
+            <a href="{{ url_for('document_detail', doc_id=doc.id) }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Document
+            </a>
+            {% if session.get('role') in ['admin', 'engineer'] %}
+            <a href="{{ url_for('upload_new_version', doc_id=doc.id) }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Upload New Version
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'success' if category == 'success' else 'danger' if category == 'danger' else 'warning' }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-history me-2"></i>Document Versions</h5>
+        </div>
+        <div class="card-body">
+            {% if doc.versions %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Version</th>
+                            <th>File</th>
+                            <th>Size</th>
+                            <th>Uploaded By</th>
+                            <th>Upload Date</th>
+                            <th>Changes</th>
+                            <th>Checksum</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for version in doc.versions %}
+                        <tr class="{% if version.is_current %}table-success{% endif %}">
+                            <td>
+                                <span class="badge bg-{% if version.is_current %}success{% else %}secondary{% endif %}">
+                                    v{{ version.version_number }}
+                                </span>
+                                {% if version.is_current %}
+                                <span class="badge bg-info">Current</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-file me-2 text-{% if version.file_type == 'PDF Document' %}danger{% elif 'Word' in version.file_type %}primary{% elif 'Excel' in version.file_type %}success{% elif 'Image' in version.file_type %}warning{% else %}secondary{% endif %}"></i>
+                                    <div>
+                                        <strong>{{ version.filename }}</strong><br>
+                                        <small class="text-muted">{{ version.file_type }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                {% if version.file_size %}
+                                <span class="badge bg-light text-dark">{{ version.formatted_size }}</span>
+                                {% else %}
+                                <span class="text-muted">Unknown</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if version.uploader %}
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-user-circle me-2"></i>
+                                    <span>{{ version.uploader.username }}</span>
+                                </div>
+                                {% else %}
+                                <span class="text-muted">Unknown</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small>{{ version.uploaded_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                            </td>
+                            <td>
+                                {% if version.change_description %}
+                                <small>{{ version.change_description|truncate(50) }}</small>
+                                {% else %}
+                                <span class="text-muted">No description</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if version.checksum %}
+                                <small class="text-muted" title="{{ version.checksum }}">
+                                    {{ version.checksum[:8] }}...
+                                </small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('download_file', filename=version.filename) }}" 
+                                       class="btn btn-outline-primary" title="Download">
+                                        <i class="fas fa-download"></i>
+                                    </a>
+                                    {% if session.get('role') in ['admin', 'engineer'] and not version.is_current %}
+                                    <form action="{{ url_for('rollback_version', version_id=version.id) }}" 
+                                          method="POST" class="d-inline">
+                                        <button type="submit" 
+                                                class="btn btn-outline-warning" 
+                                                title="Rollback to this version"
+                                                onclick="return confirm('Rollback to version {{ version.version_number }}? This will create a new version based on this one.')">
+                                            <i class="fas fa-undo"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="mt-4">
+                <h6><i class="fas fa-info-circle me-2"></i>About Versioning:</h6>
+                <ul class="small text-muted">
+                    <li>Each version maintains a complete copy of the document file</li>
+                    <li>File integrity is verified using SHA256 checksums</li>
+                    <li>Rollback creates a new version to maintain audit trail</li>
+                    <li>Only admins and engineers can upload new versions</li>
+                </ul>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                <h5>No versions found</h5>
+                <p class="text-muted">This document has no uploaded versions yet.</p>
+                {% if session.get('role') in ['admin', 'engineer'] %}
+                <a href="{{ url_for('upload_new_version', doc_id=doc.id) }}" class="btn btn-primary">
+                    <i class="fas fa-upload me-2"></i>Upload First Version
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.badge {
+    font-size: 0.8em;
+}
+.table td {
+    vertical-align: middle;
+}
+</style>
+{% endblock %}

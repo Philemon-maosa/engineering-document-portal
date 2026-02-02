@@ -6,23 +6,54 @@
     <!-- Project Header -->
     <div class="card mb-4">
         <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex justify-content-between align-items-start">
                 <div>
+                    <!-- Archive Status Badge - Temporarily removed -->
+                    
                     <h2 class="card-title mb-1">{{ project.name }}</h2>
                     <p class="card-text text-muted">{{ project.description or "No description provided." }}</p>
+                    
+                    <!-- Project Metadata - Updated without created_at/updated_at -->
+                    <div class="small text-muted mt-2">
+                        <i class="bi bi-folder"></i> 
+                        Project ID: {{ project.id }}
+                        <!-- Created/Updated dates will be added when database is updated -->
+                    </div>
                 </div>
-                <div>
-                    <a href="{{ url_for('projects') }}" class="btn btn-secondary">Back to Projects</a>
+                <div class="btn-group">
+                    <a href="{{ url_for('projects') }}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> Back to Projects
+                    </a>
+                    
                     {% if session.get("role") == "admin" %}
                         <a href="{{ url_for('edit_project', project_id=project.id) }}" 
-                           class="btn btn-primary">Edit Project</a>
+                           class="btn btn-primary">
+                            <i class="bi bi-pencil"></i> Edit Project
+                        </a>
+                        
+                        <!-- Archive/Unarchive Button - Temporarily disabled -->
+                        <button class="btn btn-warning" disabled title="Archive feature coming soon">
+                            <i class="bi bi-archive"></i> Archive
+                        </button>
+                        
+                        <!-- Delete Button -->
+                        <form action="{{ url_for('delete_project', project_id=project.id) }}"
+                              method="POST" style="display:inline;">
+                            <button type="submit"
+                                    class="btn btn-danger"
+                                    onclick="return confirm('DELETE PERMANENTLY: This will delete the project and ALL its documents. This action cannot be undone.');">
+                                <i class="bi bi-trash"></i> Delete
+                            </button>
+                        </form>
                     {% endif %}
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Assigned Users Section -->
+    <!-- Archive Warning Banner - Temporarily removed -->
+
+    <!-- Assigned Users & Stats Row -->
     <div class="row mb-4">
         <div class="col-md-8">
             <div class="card">
@@ -51,7 +82,7 @@
                 <div class="card-footer">
                     <a href="{{ url_for('assign_users_to_project', project_id=project.id) }}" 
                        class="btn btn-warning">
-                        <i class="bi bi-person-plus"></i> Assign Users
+                        <i class="bi bi-person-plus"></i> Manage Users
                     </a>
                 </div>
                 {% endif %}
@@ -74,6 +105,14 @@
                         <p class="text-muted">Assigned Users</p>
                     </div>
                 </div>
+                {% if session.get("role") == "admin" %}
+                <div class="card-footer bg-light">
+                    <small class="text-muted">
+                        <i class="bi bi-info-circle"></i> 
+                        Project ID: {{ project.id }}
+                    </small>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -81,7 +120,10 @@
     <!-- Documents Section -->
     <div class="card">
         <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Documents ({{ project.documents|length }})</h5>
+            <h5 class="mb-0">
+                <i class="bi bi-file-earmark-text"></i> 
+                Documents ({{ project.documents|length }})
+            </h5>
             {% if session.get("role") in ["admin", "engineer"] %}
                 <a href="{{ url_for('documents') }}?project_id={{ project.id }}" 
                    class="btn btn-light btn-sm">
@@ -128,14 +170,20 @@
                                 <td>
                                     <div class="btn-group btn-group-sm">
                                         <a href="{{ url_for('document_detail', doc_id=doc.id) }}" 
-                                           class="btn btn-outline-primary">View</a>
+                                           class="btn btn-outline-primary">
+                                           <i class="bi bi-eye"></i> View
+                                        </a>
                                         {% if doc.versions and doc.versions[0] %}
                                             <a href="{{ url_for('download_file', filename=doc.versions[0].filename) }}" 
-                                               class="btn btn-outline-info">Download</a>
+                                               class="btn btn-outline-info">
+                                               <i class="bi bi-download"></i> Download
+                                            </a>
                                         {% endif %}
                                         {% if session.get("role") in ["admin", "engineer"] %}
                                             <a href="{{ url_for('upload_new_version', doc_id=doc.id) }}" 
-                                               class="btn btn-outline-success">New Version</a>
+                                               class="btn btn-outline-success">
+                                               <i class="bi bi-upload"></i> New Version
+                                            </a>
                                         {% endif %}
                                     </div>
                                 </td>
@@ -158,7 +206,61 @@
                 </div>
             {% endif %}
         </div>
+        
+        <!-- Document Actions Footer -->
+        {% if project.documents %}
+        <div class="card-footer bg-light">
+            <div class="d-flex justify-content-between align-items-center">
+                <small class="text-muted">
+                    Showing {{ project.documents|length }} document(s)
+                </small>
+                {% if session.get("role") in ["admin", "engineer"] %}
+                <div>
+                    <a href="{{ url_for('documents') }}?project_id={{ project.id }}" 
+                       class="btn btn-sm btn-outline-success">
+                        <i class="bi bi-plus-circle"></i> Add Another Document
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
     </div>
+    
+    <!-- Admin Quick Actions -->
+    {% if session.get("role") == "admin" %}
+    <div class="mt-4">
+        <div class="card">
+            <div class="card-header bg-dark text-white">
+                <h6 class="mb-0">
+                    <i class="bi bi-gear"></i> Admin Actions
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <a href="{{ url_for('assign_users_to_project', project_id=project.id) }}" 
+                           class="btn btn-outline-warning w-100">
+                            <i class="bi bi-people"></i> Manage Users
+                        </a>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="{{ url_for('edit_project', project_id=project.id) }}" 
+                           class="btn btn-outline-primary w-100">
+                            <i class="bi bi-pencil"></i> Edit Project
+                        </a>
+                    </div>
+                    <div class="col-md-4">
+                        <!-- Archive button temporarily disabled -->
+                        <button class="btn btn-outline-warning w-100" disabled title="Archive feature coming soon">
+                            <i class="bi bi-archive"></i> Archive
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
 </div>
 {% endblock %}

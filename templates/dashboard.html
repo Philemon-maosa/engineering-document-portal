@@ -2,94 +2,450 @@
 
 {% block content %}
 <div class="container mt-4">
-
-    <h2>Dashboard</h2>
-    <p class="text-muted">Welcome back, {{ session.get('username') }}!</p>
-
-    <div class="row mt-4">
-
-        <!-- Active Projects -->
-        <div class="col-md-6 mb-4">
-            <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white">
-                    Active Projects
-                </div>
-                <div class="card-body">
-                    {% if projects %}  <!-- CHANGED: active_projects to projects -->
-                    <ul class="list-group list-group-flush">
-                        {% for project in projects %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <a href="{{ url_for('project_detail', project_id=project.id) }}">
-                                {{ project.name }}
-                            </a>
-                            <span class="badge bg-secondary">{{ project.documents|length }} docs</span>
-                        </li>
-                        {% endfor %}
-                    </ul>
-                    {% else %}
-                        <p class="text-muted">No active projects assigned to you.</p>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-
-        <!-- Recently Updated Documents -->
-        <div class="col-md-6 mb-4">
-            <div class="card shadow-sm">
-                <div class="card-header bg-success text-white">
-                    Recently Updated Documents
-                </div>
-                <div class="card-body">
-                    {% if documents %}  <!-- CHANGED: recent_documents to documents -->
-                    <ul class="list-group list-group-flush">
-                        {% for doc in documents %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                                <strong>{{ doc.title }}</strong> 
-                                <br>
-                                <small class="text-muted">{{ doc.project.name if doc.project else "No project" }}</small>
-                            </div>
-                            {% set current_version = doc.versions[0] if doc.versions else None %}
-                            {% if current_version %}
-                            <a href="{{ url_for('download_file', filename=current_version.filename) }}"
-                               class="btn btn-sm btn-outline-info">Download</a>
-                            {% endif %}
-                        </li>
-                        {% endfor %}
-                    </ul>
-                    {% else %}
-                        <p class="text-muted">No documents updated recently.</p>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-
-    </div>
-
-    <!-- Pending Approvals -->
-    <div class="row mt-2">
-        <div class="col-md-12 mb-4">
-            <div class="card shadow-sm">
-                <div class="card-header bg-warning text-dark">
-                    Quick Actions
-                </div>
-                <div class="card-body">
-                    <div class="d-flex gap-2">
-                        {% if session.get('role') in ['admin', 'engineer'] %}
-                            <a href="{{ url_for('documents') }}" class="btn btn-primary">New Document</a>
-                        {% endif %}
-                        
-                        {% if session.get('role') == 'admin' %}
-                            <a href="{{ url_for('projects') }}" class="btn btn-secondary">New Project</a>
-                            <a href="{{ url_for('manage_users') }}" class="btn btn-warning">Manage Users</a>
-                        {% endif %}
-                        
-                        <a href="{{ url_for('profile') }}" class="btn btn-info">My Profile</a>
+    <!-- Welcome Header -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card bg-light border-0">
+                <div class="card-body py-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h1 class="mb-1">
+                                <i class="fas fa-tachometer-alt me-2 text-primary"></i>Dashboard
+                            </h1>
+                            <p class="lead mb-0">
+                                Welcome back, <strong class="text-primary">{{ session.get('username') }}</strong>!
+                                <span class="badge bg-{{ 'danger' if session.get('role') == 'admin' else 'success' if session.get('role') == 'engineer' else 'secondary' }} ms-2">
+                                    {{ session.get('role')|title }}
+                                </span>
+                            </p>
+                            <small class="text-muted">
+                                <i class="fas fa-calendar me-1"></i>Today is {{ now.strftime('%A, %B %d, %Y') }}
+                            </small>
+                        </div>
+                        <div class="text-end">
+                            <div class="h2 mb-0">{{ recent_docs|length if recent_docs else 0 }}</div>
+                            <small class="text-muted">Recent Updates</small>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Statistics Row -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Active Projects</h6>
+                            <h4 class="mb-0">{{ user_projects|length if user_projects else 0 }}</h4>
+                        </div>
+                        <i class="fas fa-folder fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Total Documents</h6>
+                            <h4 class="mb-0">{{ total_documents if total_documents is defined else 0 }}</h4>
+                        </div>
+                        <i class="fas fa-file-alt fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Pending Approvals</h6>
+                            <h4 class="mb-0">{{ pending_approvals|length if pending_approvals else 0 }}</h4>
+                        </div>
+                        <i class="fas fa-clock fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Knowledge Base</h6>
+                            <h4 class="mb-0">{{ kb_documents if kb_documents is defined else 0 }}</h4>
+                        </div>
+                        <i class="fas fa-graduation-cap fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Dashboard Content -->
+    <div class="row">
+        <!-- Left Column: Recent Documents & Knowledge Base -->
+        <div class="col-lg-8">
+            <!-- Recently Updated Documents -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>Recently Updated Documents
+                    </h5>
+                    <a href="{{ url_for('documents') }}" class="btn btn-sm btn-light">
+                        View All <i class="fas fa-arrow-right ms-1"></i>
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_docs %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Document</th>
+                                    <th>Project</th>
+                                    <th>Status</th>
+                                    <th>Updated</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for doc in recent_docs %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if doc.latest_version %}
+                                            <i class="fas fa-file text-primary me-2"></i>
+                                            {% else %}
+                                            <i class="fas fa-file text-secondary me-2"></i>
+                                            {% endif %}
+                                            <div>
+                                                <a href="{{ url_for('document_detail', doc_id=doc.id) }}" 
+                                                   class="text-decoration-none">
+                                                    <strong>{{ doc.title|truncate(30) }}</strong>
+                                                </a>
+                                                <div class="small text-muted">
+                                                    {{ doc.author.username if doc.author else "Unknown" }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if doc.project %}
+                                        <a href="{{ url_for('project_detail', project_id=doc.project.id) }}" 
+                                           class="badge bg-light text-dark text-decoration-none">
+                                            {{ doc.project.name|truncate(15) }}
+                                        </a>
+                                        {% else %}
+                                        <span class="badge bg-secondary">No Project</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ 'warning' if doc.status == 'draft' else 'info' if doc.status == 'in_review' else 'success' if doc.status == 'approved' else 'secondary' }}">
+                                            {{ doc.status|replace('_', ' ')|title }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted" title="{{ doc.updated_at }}">
+                                            {{ doc.updated_at.strftime('%b %d, %H:%M') if doc.updated_at else 'N/A' }}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('document_detail', doc_id=doc.id) }}" 
+                                               class="btn btn-outline-info" title="View">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            {% if session.get('role') in ['admin', 'engineer'] %}
+                                            <a href="{{ url_for('edit_document', doc_id=doc.id) }}" 
+                                               class="btn btn-outline-primary" title="Edit">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            {% endif %}
+                                            {% if doc.latest_version %}
+                                            <a href="{{ url_for('download_file', filename=doc.latest_version.filename) }}" 
+                                               class="btn btn-outline-success" title="Download">
+                                                <i class="fas fa-download"></i>
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No documents have been updated recently.</p>
+                        <a href="{{ url_for('documents') }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>Create Your First Document
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Recent Knowledge Base Updates -->
+            {% if recent_knowledge %}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-graduation-cap me-2"></i>Recent Knowledge Base Updates
+                    </h5>
+                    <a href="{{ url_for('knowledge_base') }}" class="btn btn-sm btn-light">
+                        View All <i class="fas fa-arrow-right ms-1"></i>
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for doc in recent_knowledge %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card border h-100">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h6 class="card-title mb-0">
+                                            <a href="{{ url_for('document_detail', doc_id=doc.id) }}" 
+                                               class="text-decoration-none">
+                                                {{ doc.title|truncate(40) }}
+                                            </a>
+                                        </h6>
+                                        {% if doc.knowledge_type %}
+                                        <span class="badge bg-info small">{{ doc.formatted_knowledge_type if doc.formatted_knowledge_type else doc.knowledge_type|title }}</span>
+                                        {% endif %}
+                                    </div>
+                                    <p class="card-text small text-muted">{{ doc.description|truncate(80) if doc.description else "No description" }}</p>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="text-muted">
+                                            {{ doc.updated_at.strftime('%b %d') if doc.updated_at else 'N/A' }}
+                                        </small>
+                                        <a href="{{ url_for('document_detail', doc_id=doc.id) }}" 
+                                           class="btn btn-sm btn-outline-info">
+                                            <i class="fas fa-eye me-1"></i>View
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Right Column: Projects & Pending Approvals -->
+        <div class="col-lg-4">
+            <!-- Active Projects Overview -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-folder me-2"></i>Your Active Projects
+                    </h5>
+                    <a href="{{ url_for('projects') }}" class="btn btn-sm btn-light">
+                        View All <i class="fas fa-arrow-right ms-1"></i>
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if user_projects %}
+                    <div class="list-group list-group-flush">
+                        {% for project in user_projects[:5] %}
+                        <a href="{{ url_for('project_detail', project_id=project.id) }}" 
+                           class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">{{ project.name }}</h6>
+                                    <small class="text-muted">
+                                        {{ project.description|truncate(40) if project.description else "No description" }}
+                                    </small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-secondary">{{ project.documents|length }} docs</span>
+                                    {% if project.assigned_users %}
+                                    <small class="d-block text-muted mt-1">
+                                        {{ project.assigned_users|length }} members
+                                    </small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-folder-open fa-2x text-muted mb-3"></i>
+                        <p class="text-muted mb-3">You're not assigned to any projects.</p>
+                        {% if session.get('role') == 'admin' %}
+                        <a href="{{ url_for('projects') }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>Create Project
+                        </a>
+                        {% else %}
+                        <small class="text-muted">Contact an administrator to be assigned to a project.</small>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Pending Approvals -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clock me-2"></i>Pending Approvals
+                    </h5>
+                    <span class="badge bg-danger">{{ pending_approvals|length if pending_approvals else 0 }}</span>
+                </div>
+                <div class="card-body">
+                    {% if pending_approvals %}
+                    <div class="list-group list-group-flush">
+                        {% for doc in pending_approvals[:5] %}
+                        <a href="{{ url_for('document_detail', doc_id=doc.id) }}" 
+                           class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">{{ doc.title|truncate(30) }}</h6>
+                                    <small class="text-muted">
+                                        <i class="fas fa-user me-1"></i>{{ doc.author.username if doc.author else "Unknown" }}
+                                    </small>
+                                </div>
+                                <div>
+                                    <span class="badge bg-warning">Needs Review</span>
+                                    <small class="d-block text-muted mt-1">
+                                        {{ doc.updated_at.strftime('%b %d') if doc.updated_at else 'N/A' }}
+                                    </small>
+                                </div>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-check-circle fa-2x text-success mb-3"></i>
+                        <p class="text-muted">No pending approvals at this time.</p>
+                        <small class="text-muted">All documents are up to date.</small>
+                    </div>
+                    {% endif %}
+                    
+                    {% if pending_approvals and pending_approvals|length > 5 %}
+                    <div class="text-center mt-3">
+                        <a href="{{ url_for('documents', status='in_review') }}" class="btn btn-sm btn-outline-warning">
+                            View All Pending Approvals
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        {% if session.get('role') in ['admin', 'engineer'] %}
+                        <a href="{{ url_for('documents') }}" class="btn btn-primary">
+                            <i class="fas fa-plus-circle me-2"></i>New Document
+                        </a>
+                        {% endif %}
+                        
+                        <a href="{{ url_for('knowledge_base') }}" class="btn btn-success">
+                            <i class="fas fa-graduation-cap me-2"></i>Knowledge Base
+                        </a>
+                        
+                        {% if session.get('role') == 'admin' %}
+                        <a href="{{ url_for('projects') }}" class="btn btn-secondary">
+                            <i class="fas fa-folder-plus me-2"></i>New Project
+                        </a>
+                        <a href="{{ url_for('manage_users') }}" class="btn btn-warning">
+                            <i class="fas fa-users-cog me-2"></i>Manage Users
+                        </a>
+                        {% endif %}
+                        
+                        <a href="{{ url_for('profile') }}" class="btn btn-info">
+                            <i class="fas fa-user-circle me-2"></i>My Profile
+                        </a>
+                        
+                        <a href="{{ url_for('notifications') }}" class="btn btn-outline-dark">
+                            <i class="fas fa-bell me-2"></i>Notifications
+                            {% if pending_approvals %}
+                            <span class="badge bg-danger ms-2">{{ pending_approvals|length }}</span>
+                            {% endif %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Status -->
+    <div class="row mt-4">
+        <div class="col">
+            <div class="card border">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-server me-2"></i>System Status</h6>
+                </div>
+                <div class="card-body py-3">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <div class="mb-2">
+                                <i class="fas fa-database fa-2x text-primary"></i>
+                            </div>
+                            <div class="h5 mb-1">{{ total_documents if total_documents is defined else 0 }}</div>
+                            <small class="text-muted">Total Documents</small>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-2">
+                                <i class="fas fa-users fa-2x text-success"></i>
+                            </div>
+                            <div class="h5 mb-1">{{ total_users if total_users is defined else 0 }}</div>
+                            <small class="text-muted">Active Users</small>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-2">
+                                <i class="fas fa-project-diagram fa-2x text-info"></i>
+                            </div>
+                            <div class="h5 mb-1">{{ total_projects if total_projects is defined else 0 }}</div>
+                            <small class="text-muted">Projects</small>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-2">
+                                <i class="fas fa-hashtag fa-2x text-warning"></i>
+                            </div>
+                            <div class="h5 mb-1">{{ total_tags if total_tags is defined else 0 }}</div>
+                            <small class="text-muted">Tags</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<style>
+.card {
+    border: 1px solid rgba(0,0,0,0.125);
+    transition: transform 0.2s;
+}
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+.list-group-item:hover {
+    background-color: #f8f9fa;
+}
+.badge {
+    font-size: 0.75em;
+}
+.table-hover tbody tr:hover {
+    background-color: rgba(0,0,0,0.02);
+}
+</style>
 {% endblock %}

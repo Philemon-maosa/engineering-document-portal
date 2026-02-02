@@ -1,0 +1,405 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex align-items-center">
+            <div class="me-3">
+                <span class="badge bg-primary fs-4">
+                    <i class="fas fa-hashtag"></i>
+                </span>
+            </div>
+            <div>
+                <h2 class="mb-0">Tag: {{ tag.name }}</h2>
+                <p class="text-muted mb-0">{{ document_count }} document{{ 's' if document_count != 1 }}</p>
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('tags') }}" class="btn btn-outline-primary">
+                <i class="fas fa-tags me-2"></i>All Tags
+            </a>
+            <a href="{{ url_for('documents') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>All Documents
+            </a>
+        </div>
+    </div>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ 'success' if category=='success' else 'danger' if category == 'danger' else 'warning' }} alert-dismissible fade show" role="alert">
+            <i class="fas fa-{{ 'check-circle' if category == 'success' else 'exclamation-triangle' if category == 'danger' else 'info-circle' }} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <!-- Tag Statistics -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <h5><i class="fas fa-info-circle me-2"></i>Tag Information</h5>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-borderless">
+                                <tbody>
+                                    <tr>
+                                        <td><strong>Tag ID:</strong></td>
+                                        <td>#{{ tag.id }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Tag Name:</strong></td>
+                                        <td>
+                                            <span class="badge bg-primary fs-6">
+                                                <i class="fas fa-hashtag me-1"></i>{{ tag.name }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Created:</strong></td>
+                                        <td>
+                                            <i class="fas fa-calendar-plus me-1"></i>
+                                            {% if tag.documents|length > 0 %}
+                                                {{ tag.documents[0].created_at.strftime('%Y-%m-%d') }}
+                                            {% else %}
+                                                Unknown
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Total Documents:</strong></td>
+                                        <td>
+                                            <span class="badge bg-success fs-6">
+                                                {{ document_count }} document{{ 's' if document_count != 1 }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <h5><i class="fas fa-chart-pie me-2"></i>Document Status</h5>
+                        {% if documents %}
+                        <div class="mt-3">
+                            {% set draft_count = documents|selectattr('status', 'equalto', 'draft')|list|length %}
+                            {% set review_count = documents|selectattr('status', 'equalto', 'in_review')|list|length %}
+                            {% set approved_count = documents|selectattr('status', 'equalto', 'approved')|list|length %}
+                            {% set archived_count = documents|selectattr('status', 'equalto', 'archived')|list|length %}
+                            
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span>Status Distribution</span>
+                                    <span class="text-muted">{{ document_count }} total</span>
+                                </div>
+                                <div class="progress" style="height: 25px;">
+                                    {% set total = draft_count + review_count + approved_count + archived_count %}
+                                    {% if total > 0 %}
+                                    <div class="progress-bar bg-warning" style="width: {{ draft_count/total*100 }}%" 
+                                         title="Draft: {{ draft_count }} ({{ (draft_count/total*100)|round(1) }}%)">
+                                        {{ draft_count }}
+                                    </div>
+                                    <div class="progress-bar bg-info" style="width: {{ review_count/total*100 }}%"
+                                         title="In Review: {{ review_count }} ({{ (review_count/total*100)|round(1) }}%)">
+                                        {{ review_count }}
+                                    </div>
+                                    <div class="progress-bar bg-success" style="width: {{ approved_count/total*100 }}%"
+                                         title="Approved: {{ approved_count }} ({{ (approved_count/total*100)|round(1) }}%)">
+                                        {{ approved_count }}
+                                    </div>
+                                    <div class="progress-bar bg-secondary" style="width: {{ archived_count/total*100 }}%"
+                                         title="Archived: {{ archived_count }} ({{ (archived_count/total*100)|round(1) }}%)">
+                                        {{ archived_count }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="row small text-muted">
+                                <div class="col-6">
+                                    <span class="badge bg-warning me-1">&nbsp;</span>
+                                    Draft: {{ draft_count }}
+                                </div>
+                                <div class="col-6">
+                                    <span class="badge bg-info me-1">&nbsp;</span>
+                                    In Review: {{ review_count }}
+                                </div>
+                                <div class="col-6 mt-1">
+                                    <span class="badge bg-success me-1">&nbsp;</span>
+                                    Approved: {{ approved_count }}
+                                </div>
+                                <div class="col-6 mt-1">
+                                    <span class="badge bg-secondary me-1">&nbsp;</span>
+                                    Archived: {{ archived_count }}
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-3">
+                            <i class="fas fa-chart-bar fa-2x text-muted"></i>
+                            <p class="text-muted mt-2">No data available</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h5><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
+            <div class="d-flex flex-wrap gap-2 mt-3">
+                <a href="{{ url_for('documents') }}?tag={{ tag.id }}" class="btn btn-outline-primary">
+                    <i class="fas fa-search me-2"></i>Search with this tag
+                </a>
+                <button class="btn btn-outline-secondary" onclick="copyToClipboard('{{ tag.name }}')">
+                    <i class="fas fa-copy me-2"></i>Copy tag name
+                </button>
+                <button class="btn btn-outline-info" onclick="copyToClipboard(window.location.href)">
+                    <i class="fas fa-link me-2"></i>Copy page link
+                </button>
+                {% if session.get('role') == 'admin' and document_count == 0 %}
+                <form action="{{ url_for('delete_tag', tag_id=tag.id) }}" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-outline-danger"
+                            onclick="return confirm('Delete tag \"{{ tag.name }}\"?')">
+                        <i class="fas fa-trash me-2"></i>Delete unused tag
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Documents List -->
+    {% if documents %}
+    <div class="card shadow-sm">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="fas fa-file-alt me-2"></i>Documents tagged with "{{ tag.name }}"
+            </h5>
+            <span class="badge bg-primary">{{ document_count }}</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Document</th>
+                            <th>Status</th>
+                            <th>Category</th>
+                            <th>Project</th>
+                            <th>Last Updated</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for doc in documents|sort(attribute='updated_at', reverse=true) %}
+                        <tr>
+                            <td>
+                                <div>
+                                    <a href="{{ url_for('document_detail', doc_id=doc.id) }}" class="fw-bold text-decoration-none">
+                                        {{ doc.title|truncate(50) }}
+                                    </a>
+                                    <div class="small text-muted mt-1">
+                                        {{ doc.description|truncate(80) }}
+                                    </div>
+                                    <div class="small mt-1">
+                                        <i class="fas fa-user me-1"></i>{{ doc.author.username if doc.author else "Unknown" }}
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ 'warning' if doc.status == 'draft' else 'info' if doc.status == 'in_review' else 'success' if doc.status == 'approved' else 'secondary' }}">
+                                    {{ doc.status|replace('_', ' ')|title if doc.status else 'Draft' }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">{{ doc.category if doc.category else "General" }}</span>
+                            </td>
+                            <td>
+                                {% if doc.project %}
+                                <a href="{{ url_for('project_detail', project_id=doc.project.id) }}" class="text-decoration-none">
+                                    <i class="fas fa-folder me-1"></i>{{ doc.project.name|truncate(20) }}
+                                </a>
+                                {% else %}
+                                <span class="text-muted">None</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small>{{ doc.updated_at.strftime('%Y-%m-%d') }}</small>
+                                <div class="small text-muted">
+                                    {{ doc.updated_at.strftime('%H:%M') }}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('document_detail', doc_id=doc.id) }}" class="btn btn-outline-info" title="View">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% if session.get("role") in ["admin", "engineer"] %}
+                                    <a href="{{ url_for('edit_document', doc_id=doc.id) }}" class="btn btn-outline-primary" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    {% endif %}
+                                    {% if doc.versions and doc.versions|length > 0 %}
+                                    <a href="{{ url_for('download_file', filename=doc.versions[0].filename) }}" 
+                                       class="btn btn-outline-success" title="Download">
+                                        <i class="fas fa-download"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card-footer bg-transparent">
+            <div class="d-flex justify-content-between align-items-center">
+                <small class="text-muted">
+                    Showing {{ documents|length }} of {{ document_count }} document{{ 's' if document_count != 1 }}
+                </small>
+                <a href="{{ url_for('documents') }}" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-list me-1"></i>View All Documents
+                </a>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+        <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
+        <h4>No documents found with this tag</h4>
+        <p class="text-muted mb-4">This tag is not used in any documents yet.</p>
+        <div class="d-flex justify-content-center gap-2">
+            <a href="{{ url_for('documents') }}" class="btn btn-primary">
+                <i class="fas fa-arrow-left me-2"></i>Browse Documents
+            </a>
+            <a href="{{ url_for('tags') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-tags me-2"></i>View All Tags
+            </a>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Related Tags -->
+    {% if documents and document_count > 0 %}
+    {% set related_tags = {} %}
+    {% for doc in documents %}
+        {% for other_tag in doc.tags %}
+            {% if other_tag.id != tag.id %}
+                {% if other_tag.id not in related_tags %}
+                    {% set _ = related_tags.update({other_tag.id: {'tag': other_tag, 'count': 1}}) %}
+                {% else %}
+                    {% set _ = related_tags[other_tag.id].update({'count': related_tags[other_tag.id].count + 1}) %}
+                {% endif %}
+            {% endif %}
+        {% endfor %}
+    {% endfor %}
+    
+    {% if related_tags %}
+    <div class="mt-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-tags me-2"></i>Frequently Used Together</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">These tags are often used together with "{{ tag.name }}":</p>
+                <div class="d-flex flex-wrap gap-2">
+                    {% for tag_info in related_tags.values()|sort(attribute='count', reverse=True) %}
+                    <a href="{{ url_for('documents_by_tag', tag_id=tag_info.tag.id) }}" 
+                       class="badge bg-light text-dark text-decoration-none p-2" 
+                       title="{{ tag_info.count }} shared document{{ 's' if tag_info.count != 1 }}">
+                        <i class="fas fa-hashtag me-1"></i>{{ tag_info.tag.name }}
+                        <span class="badge bg-primary ms-1">{{ tag_info.count }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+                <div class="mt-3 small text-muted">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Click on any tag to view documents with that tag
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% endif %}
+</div>
+
+<style>
+.card {
+    border: 1px solid rgba(0,0,0,0.125);
+}
+.badge {
+    font-size: 0.75em;
+}
+.table td {
+    vertical-align: middle;
+}
+.progress-bar {
+    font-size: 0.7rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #000;
+    font-weight: bold;
+    min-width: 20px;
+}
+.table-hover tbody tr:hover {
+    background-color: rgba(0,0,0,0.02);
+}
+</style>
+
+<script>
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        // Show temporary success message
+        const button = event.target.closest('button');
+        const originalText = button.innerHTML;
+        const originalClass = button.className;
+        
+        button.innerHTML = '<i class="fas fa-check me-2"></i>Copied!';
+        button.className = originalClass.replace('outline-', '');
+        button.classList.add('btn-success');
+        
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.className = originalClass;
+            button.classList.remove('btn-success');
+        }, 1500);
+    }).catch(err => {
+        console.error('Failed to copy: ', err);
+        alert('Failed to copy to clipboard');
+    });
+}
+
+// Initialize tooltips
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Bootstrap tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Make tag badges clickable for filtering
+    document.querySelectorAll('.tag-badge').forEach(badge => {
+        badge.style.cursor = 'pointer';
+        badge.addEventListener('click', function() {
+            const tagId = this.getAttribute('data-tag-id');
+            if (tagId) {
+                window.location.href = "{{ url_for('documents_by_tag', tag_id=0) }}".replace('0', tagId);
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
