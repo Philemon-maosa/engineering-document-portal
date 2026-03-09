@@ -55,7 +55,7 @@
                 </div>
                 <div class="card-body p-0">
                     <div class="list-group list-group-flush">
-                        {% for doc in recent_docs[:5] %}
+                        {% for doc in documents[:5] %}
                         <a href="{{ url_for('document_detail', doc_id=doc.id) }}" 
                            class="list-group-item list-group-item-action">
                             <div class="d-flex justify-content-between align-items-center">
