@@ -29,7 +29,7 @@
             <div class="card text-white bg-success">
                 <div class="card-body">
                     <h5>Projects</h5>
-                    <h2>{{ user_projects|length }}</h2>
+                    <h2>{{ projects|length }}</h2>
                     <small>Active projects</small>
                 </div>
             </div>
@@ -90,7 +90,7 @@
                 </div>
                 <div class="card-body p-0">
                     <div class="list-group list-group-flush">
-                        {% for project in user_projects[:5] %}
+                        {% for project in projects[:5] %}
                         <a href="{{ url_for('project_detail', project_id=project.id) }}" 
                            class="list-group-item list-group-item-action">
                             <div class="d-flex justify-content-between align-items-center">
