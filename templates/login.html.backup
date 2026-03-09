@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card shadow-sm border-0 mt-5">
+                <div class="card-header bg-primary text-white text-center py-3">
+                    <h3 class="mb-0"><i class="fas fa-sign-in-alt me-2"></i>Login</h3>
+                    <small class="opacity-75">Engineering Documentation Portal</small>
+                </div>
+                
+                <div class="card-body p-4">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ 'danger' if category == 'danger' else 'warning' if category == 'warning' else 'success' }} alert-dismissible fade show" role="alert">
+                                    <i class="fas fa-{{ 'exclamation-triangle' if category == 'danger' else 'info-circle' if category == 'warning' else 'check-circle' }} me-2"></i>
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                    
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">
+                                <i class="fas fa-user me-1"></i>Username
+                            </label>
+                            <input type="text" id="username" name="username" 
+                                   class="form-control form-control-lg" 
+                                   placeholder="Enter your username" required autofocus>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="password" class="form-label">
+                                <i class="fas fa-lock me-1"></i>Password
+                            </label>
+                            <input type="password" id="password" name="password" 
+                                   class="form-control form-control-lg" 
+                                   placeholder="Enter your password" required>
+                            <div class="form-text">
+                                <a href="{{ url_for('forgot_password') }}" class="text-decoration-none">
+                                    <i class="fas fa-question-circle me-1"></i>Forgot your password?
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 mb-3">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-sign-in-alt me-2"></i>Sign In
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="text-center">
+                        <p class="text-muted mb-2">
+                            <strong>Demo Accounts:</strong>
+                        </p>
+                        <div class="card bg-light border-0">
+                            <div class="card-body p-3">
+                                <div class="row small">
+                                    <div class="col-12 mb-1">
+                                        <span class="badge bg-primary me-2">Admin</span>
+                                        admin / admin123
+                                    </div>
+                                    <div class="col-12 mb-1">
+                                        <span class="badge bg-success me-2">Engineer</span>
+                                        engineer / engineer123
+                                    </div>
+                                    <div class="col-12">
+                                        <span class="badge bg-info me-2">Viewer</span>
+                                        viewer / viewer123
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4">
+                            <p class="small text-muted">
+                                <i class="fas fa-shield-alt me-1"></i>
+                                Secure login with account lockout protection
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    border-radius: 10px;
+    border: 1px solid rgba(0,0,0,0.1);
+}
+
+.card-header {
+    border-radius: 10px 10px 0 0 !important;
+}
+
+.form-control:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+    border: none;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #0a58ca 0%, #084298 100%);
+}
+
+a.text-decoration-none:hover {
+    text-decoration: underline !important;
+}
+</style>
+
+<!-- Font Awesome Icons (add to your base.html if not already present) -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+{% endblock %}
